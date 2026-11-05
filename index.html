@@ -1,0 +1,1812 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Executive P&L Excel-to-PowerPoint Generator</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS (xlsx) for reading & writing Excel files -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- PptxGenJS for generating native editable PowerPoint (.pptx) files -->
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Google Fonts for UI -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', 'Sarabun', sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+    }
+
+    /* Fixed 16:9 Slide Aspect Ratio Container for Live Preview */
+    .slide-wrapper {
+      width: 100%;
+      max-width: 1280px;
+      aspect-ratio: 16 / 9;
+      position: relative;
+      background: #F4F6F9;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65);
+      color: #1e293b;
+      font-family: Arial, 'Segoe UI', sans-serif;
+      user-select: none;
+    }
+
+    /* Scale internal 1280x720 coordinate system smoothly */
+    .slide-inner {
+      width: 1280px;
+      height: 720px;
+      transform-origin: top left;
+      position: absolute;
+      top: 0;
+      left: 0;
+      background-color: #F4F6F9;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+
+    .drop-zone-active {
+      border-color: #38bdf8 !important;
+      background-color: rgba(56, 189, 248, 0.1) !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Top Navigation & Control Bar -->
+  <header class="bg-slate-900 border-b border-slate-800 px-4 lg:px-8 py-3 sticky top-0 z-30 shadow-lg">
+    <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-4">
+      <!-- App Brand -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-md shadow-blue-500/20">
+          <i class="fa-solid fa-file-powerpoint text-white text-xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-base md:text-lg tracking-tight text-white">Executive P&L Excel <i class="fa-solid fa-arrow-right text-xs text-blue-400 mx-1"></i> PowerPoint Generator</h1>
+            <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold px-2 py-0.5 rounded-full">TrueType Font Safe</span>
+          </div>
+          <p class="text-xs text-slate-400">อัปโหลดไฟล์ Excel งบกำไรขาดทุน เพื่อสร้างสไลด์ผู้บริหาร 1 หน้า (.pptx) พร้อมกราฟและบทวิเคราะห์อัตโนมัติ</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-wrap items-center gap-2.5">
+        <!-- Sample Data Switcher -->
+        <div class="flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700 text-xs">
+          <button id="btnLoadOct" onclick="loadPresetData('oct26')" class="px-3 py-1.5 rounded-md font-semibold bg-blue-600 text-white transition">
+            <i class="fa-solid fa-check-circle mr-1"></i>ข้อมูลจริง Oct'26
+          </button>
+          <button id="btnLoadNov" onclick="loadPresetData('nov26')" class="px-3 py-1.5 rounded-md font-semibold text-slate-300 hover:text-white transition">
+            <i class="fa-solid fa-flask mr-1"></i>จำลองข้อมูล Nov'26
+          </button>
+        </div>
+
+        <!-- Download Template Excel -->
+        <button onclick="downloadExcelTemplate()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition" title="ดาวน์โหลดไฟล์ Excel ต้นแบบ">
+          <i class="fa-solid fa-file-excel text-emerald-400"></i>
+          <span>ไฟล์ต้นแบบ (.xlsx)</span>
+        </button>
+
+        <!-- Safe Font Selector for PowerPoint -->
+        <div class="flex items-center gap-1.5 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs">
+          <i class="fa-solid fa-font text-slate-400"></i>
+          <span class="text-slate-400">PPTX Font:</span>
+          <select id="pptFontSelect" onchange="renderSlidePreview()" class="bg-transparent text-white font-semibold focus:outline-none cursor-pointer">
+            <option value="Arial" class="bg-slate-800" selected>Arial (100% Save Safe)</option>
+            <option value="Calibri" class="bg-slate-800">Calibri (Standard Office)</option>
+            <option value="Segoe UI" class="bg-slate-800">Segoe UI (Modern Windows)</option>
+            <option value="Tahoma" class="bg-slate-800">Tahoma (Thai/Eng Safe)</option>
+          </select>
+        </div>
+
+        <!-- Primary Download PPTX Button -->
+        <button id="btnExportPptx" onclick="generatePowerPoint()" class="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold text-xs md:text-sm shadow-lg shadow-orange-600/30 flex items-center gap-2 transition transform active:scale-95">
+          <i class="fa-solid fa-download"></i>
+          <span>Download PowerPoint (.pptx)</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 max-w-[1600px] w-full mx-auto px-4 lg:px-8 py-6 grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+
+    <!-- Left Sidebar: Upload, Smart Parser Status & Quick Editor (4 Columns on XL) -->
+    <div class="xl:col-span-4 flex flex-col gap-5">
+
+      <!-- 1. Upload Excel Card -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-bold text-white flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs">1</span>
+            อัปโหลดไฟล์ Excel (.xlsx / .xls / .csv)
+          </h2>
+          <span id="parseStatusBadge" class="text-[11px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-medium">
+            พร้อมใช้งาน
+          </span>
+        </div>
+
+        <div id="dropZone" class="border-2 border-dashed border-slate-700 hover:border-blue-400 rounded-xl p-5 text-center transition cursor-pointer bg-slate-950/50" onclick="document.getElementById('excelFileInput').click()">
+          <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleFileSelect(event)">
+          <div class="w-12 h-12 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center mx-auto mb-2.5">
+            <i class="fa-solid fa-cloud-arrow-up text-2xl"></i>
+          </div>
+          <p class="text-xs font-semibold text-slate-200 mb-1">คลิกเพื่อเลือกไฟล์ Excel หรือลากไฟล์มาวางที่นี่</p>
+          <p class="text-[11px] text-slate-400">ระบบจะอ่านค่า Sale, Raw Mat, WIP, FG, Mfg Cost, Net Profit และวิเคราะห์ให้อัตโนมัติ</p>
+          <div id="loadedFileBanner" class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-center gap-2 text-xs text-amber-300 font-medium">
+            <i class="fa-solid fa-file-excel"></i>
+            <span id="currentFileNameText">allocate cost forOct'26.xlsx (Oct'26)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. AI & Rule-Based Insights Customization -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-bold text-white flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs">2</span>
+            บทวิเคราะห์อัตโนมัติ (Executive Takeaways)
+          </h2>
+          <button id="btnAiAnalyze" onclick="generateAiInsights()" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-2.5 py-1 rounded-md flex items-center gap-1.5 transition shadow">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span>AI วิเคราะห์ใหม่</span>
+          </button>
+        </div>
+
+        <p class="text-[11px] text-slate-400 mb-3">
+          ระบบคำนวณความเคลื่อนไหวสต็อก คอขวดงานระหว่างทำ (WIP) และอัตรากำไรตามตัวเลขจริงทันที (พี่สามารถแก้ไขข้อความด้านล่างเพิ่มเติมได้ก่อนกดดาวน์โหลด PPTX)
+        </p>
+
+        <div class="space-y-2.5 text-xs">
+          <div>
+            <label class="block text-slate-400 font-medium mb-1">Takeaway #1 (Inventory / FG Flow):</label>
+            <textarea id="inputInsight1" rows="2" oninput="syncManualEdits()" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-200 focus:border-blue-500 focus:outline-none"></textarea>
+          </div>
+          <div>
+            <label class="block text-slate-400 font-medium mb-1">Takeaway #2 (WIP & Production Line):</label>
+            <textarea id="inputInsight2" rows="2" oninput="syncManualEdits()" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-200 focus:border-blue-500 focus:outline-none"></textarea>
+          </div>
+          <div>
+            <label class="block text-slate-400 font-medium mb-1">Takeaway #3 (Profit & Cost Optimization):</label>
+            <textarea id="inputInsight3" rows="2" oninput="syncManualEdits()" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-200 focus:border-blue-500 focus:outline-none"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Data Inspector & Manual Override Accordion -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg">
+        <button onclick="toggleInspector()" class="w-full flex items-center justify-between text-left">
+          <h2 class="text-sm font-bold text-white flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs">3</span>
+            ตรวจสอบ/แก้ไขตัวเลขที่ดึงจาก Excel
+          </h2>
+          <i id="inspectorChevron" class="fa-solid fa-chevron-down text-slate-400 text-xs transition-transform"></i>
+        </button>
+
+        <div id="dataInspectorPanel" class="hidden mt-4 pt-3 border-t border-slate-800 max-h-80 overflow-y-auto pr-1 space-y-2 text-xs">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-slate-400 block mb-0.5">Period Label</label>
+              <input type="text" id="f_period" oninput="updateFromInspector()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white">
+            </div>
+            <div>
+              <label class="text-slate-400 block mb-0.5">Source Filename</label>
+              <input type="text" id="f_filename" oninput="updateFromInspector()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white">
+            </div>
+            <div>
+              <label class="text-slate-400 block mb-0.5">Total Sale (฿)</label>
+              <input type="number" step="0.01" id="f_sale" oninput="updateFromInspector()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white">
+            </div>
+            <div>
+              <label class="text-slate-400 block mb-0.5">Sheet Metal Parts (฿)</label>
+              <input type="number" step="0.01" id="f_sm" oninput="updateFromInspector()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white">
+            </div>
+            <div>
+              <label class="text-slate-400 block mb-0.5">Machine Parts (฿)</label>
+              <input type="number" step="0.01" id="f_ma" oninput="updateFromInspector()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white">
+            </div>
+            <div>
+              <label class="text-slate-400 block mb-0.5">Operation Charge (฿)</label>
+              <input type="number" step="0.01" id="f_op" oninput="updateFromInspector()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white">
+            </div>
+            <div>
+              <label class="text-slate-400 block mb-0.5">Scrap Sale (฿)</label>
+              <input type="number" step="0.01" id="f_scrap" oninput="updateFromInspector()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white">
+            </div>
+            <div>
+              <label class="text-slate-400 block mb-0.5">Other Income (฿)</label>
+              <input type="number" step="0.01" id="f_other" oninput="updateFromInspector()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white">
+            </div>
+            <div>
+              <label class="text-slate-400 block mb-0.5">Total Raw Mat Use (฿)</label>
+              <input type="number" step="0.01" id="f_totalRmUse" oninput="updateFromInspector()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white">
+            </div>
+            <div>
+              <label class="text-slate-400 block mb-0.5">Manufac. Cost (฿)</label>
+              <input type="number" step="0.01" id="f_mfgCost" oninput="updateFromInspector()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white">
+            </div>
+            <div>
+              <label class="text-slate-400 block mb-0.5">Admin + IN Ex. (฿)</label>
+              <input type="number" step="0.01" id="f_adminCost" oninput="updateFromInspector()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white">
+            </div>
+            <div>
+              <label class="text-slate-400 block mb-0.5">Net Profit (Loss) (฿)</label>
+              <input type="number" step="0.01" id="f_netProfit" oninput="updateFromInspector()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white">
+            </div>
+            <div>
+              <label class="text-slate-400 block mb-0.5">% Cost / Sale</label>
+              <input type="number" step="0.01" id="f_costSalePct" oninput="updateFromInspector()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white">
+            </div>
+            <div>
+              <label class="text-slate-400 block mb-0.5">Man-power / Sub-contract</label>
+              <div class="flex gap-1">
+                <input type="number" id="f_manpower" oninput="updateFromInspector()" class="w-1/2 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white" title="Man-power">
+                <input type="number" id="f_subcontract" oninput="updateFromInspector()" class="w-1/2 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white" title="Sub-contract">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Technical Advisory Card for User -->
+      <div class="bg-gradient-to-br from-blue-950/60 to-slate-900 border border-blue-800/40 rounded-xl p-4 text-xs space-y-2">
+        <div class="font-bold text-blue-300 flex items-center gap-1.5">
+          <i class="fa-solid fa-lightbulb text-amber-400"></i>
+          <span>ข้อเสนอแนะและจุดเด่นของระบบนี้:</span>
+        </div>
+        <ul class="space-y-1.5 text-slate-300 list-disc pl-4 leading-relaxed">
+          <li><strong>100% TrueType Font Safe:</strong> ใช้ฟอนต์มาตรฐานตระกูล <code>Arial / Calibri / Segoe UI</code> ทำให้เมื่อเปิดใน PowerPoint จะ<strong>ไม่ขึ้น Error เรื่องฟอนต์ Inter</strong> อีกต่อไป และแก้ไขตัวเลขทุกจุดใน PowerPoint ได้ทันที</li>
+          <li><strong>Dynamic Charts & Smart Insights:</strong> กราฟแท่งทั้ง 2 ฝั่ง สัดส่วน % และบทวิเคราะห์ 3 ข้อด้านขวาล่าง จะคำนวณเปลี่ยนตามตัวเลขในไฟล์ Excel อัตโนมัติทุกเดือน</li>
+          <li><strong>Data Privacy 100%:</strong> การประมวลผลไฟล์ Excel และการสร้างไฟล์ PowerPoint ทำงานบนเครื่องของพี่โดยตรง รวดเร็วและปลอดภัย</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- Right Area: Exact 16:9 Live Slide Preview (8 Columns on XL) -->
+    <div class="xl:col-span-8 flex flex-col gap-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <h2 class="text-sm font-bold text-slate-200 uppercase tracking-wider">Live PowerPoint Slide Preview (16:9 Widescreen)</h2>
+        </div>
+        <span class="text-xs text-slate-400">รูปแบบและตำแหน่งทั้งหมดจะถูกส่งออกเป็นไฟล์ .pptx ตามหน้าจอนี้ 100%</span>
+      </div>
+
+      <!-- Responsive Wrapper that scales the 1280x720 exact slide canvas -->
+      <div id="slidePreviewContainer" class="slide-wrapper">
+        <div id="slideCanvas" class="slide-inner">
+          <!-- Dynamically populated by renderSlidePreview() -->
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Toast Notification -->
+  <div id="toastBox" class="fixed bottom-5 right-5 z-50 hidden bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs font-medium">
+    <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+    <span id="toastMessage">ดำเนินการสำเร็จ</span>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. STATE & PRESET DATA (Exact Oct'26 Data from User's Excel + Nov'26 Demo)
+    // =========================================================================
+    const PRESETS = {
+      oct26: {
+        period: "October 2026 (Oct'26)",
+        shortPeriod: "Oct'26",
+        filename: "allocate cost forOct'26.xlsx",
+        sale: 8267330.10,
+        sheetMetal: 4902511.20,
+        machineParts: 2612659.60,
+        totalMaSm: 7515170.80,
+        operationCharge: 604375.20,
+        scrapSale: 97784.10,
+        otherIncome: 50000.00,
+        rmBegin: 514861.08,
+        rmPurchase: 2263554.90,
+        rmEnd: 521356.18,
+        rmUse: 2257059.80,
+        wipBegin: 1047001.65,
+        wipEnd: 1505270.54,
+        wipUse: -458268.89,
+        fgBegin: 3964010.84,
+        fgEnd: 3254176.19,
+        fgUse: 709834.65,
+        totalRawUse: 2508625.56,
+        rawMatUsePct: 33.38,
+        mfgCost: 4742452.92,
+        adminCost: 497065.11,
+        netProfit: 519186.51,
+        profitPct: 6.28,
+        costSalePct: 93.84,
+        manpower: 72,
+        subcontract: 6
+      },
+      nov26: {
+        period: "November 2026 (Nov'26)",
+        shortPeriod: "Nov'26",
+        filename: "allocate cost forNov'26.xlsx",
+        sale: 9145200.00,
+        sheetMetal: 5320100.00,
+        machineParts: 2985000.00,
+        totalMaSm: 8305100.00,
+        operationCharge: 680100.00,
+        scrapSale: 110000.00,
+        otherIncome: 50000.00,
+        rmBegin: 521356.18,
+        rmPurchase: 2690000.00,
+        rmEnd: 495000.00,
+        rmUse: 2716356.18,
+        wipBegin: 1505270.54,
+        wipEnd: 1190270.54,
+        wipUse: 315000.00,
+        fgBegin: 3254176.19,
+        fgEnd: 3589176.19,
+        fgUse: -335000.00,
+        totalRawUse: 2696356.18,
+        rawMatUsePct: 32.47,
+        mfgCost: 4920500.00,
+        adminCost: 512000.00,
+        netProfit: 1016343.82,
+        profitPct: 11.11,
+        costSalePct: 88.89,
+        manpower: 72,
+        subcontract: 8
+      }
+    };
+
+    let appData = JSON.parse(JSON.stringify(PRESETS.oct26));
+    let insights = {
+      line1: "",
+      line2: "",
+      line3: "",
+      revNote1: "",
+      revNote2: "",
+      costNote1: "",
+      costNote2: ""
+    };
+
+    // =========================================================================
+    // 2. NUMBER FORMATTING UTILITIES
+    // =========================================================================
+    function fmtCurrency(val, decimals = 2) {
+      const num = Number(val) || 0;
+      const sign = num < 0 ? "-" : "";
+      return sign + "฿" + Math.abs(num).toLocaleString('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      });
+    }
+
+    function fmtNum(val, decimals = 2) {
+      const num = Number(val) || 0;
+      return num.toLocaleString('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      });
+    }
+
+    function fmtShortK(val, decimals = 0) {
+      const num = Number(val) || 0;
+      const sign = num < 0 ? "-" : "";
+      return sign + "฿" + (Math.abs(num) / 1000).toLocaleString('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      }) + "K";
+    }
+
+    function fmtShortM(val, decimals = 2) {
+      const num = Number(val) || 0;
+      const sign = num < 0 ? "-" : "";
+      return sign + "฿" + (Math.abs(num) / 1000000).toLocaleString('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      }) + "M";
+    }
+
+    // =========================================================================
+    // 3. SMART ANALYTICAL ENGINE (Rule-based + Dynamic Recalculation)
+    // =========================================================================
+    function recalculateDerivedMetrics(autoGenerateText = true) {
+      const d = appData;
+      d.totalMaSm = (Number(d.sheetMetal) || 0) + (Number(d.machineParts) || 0);
+      const scrapAndOther = (Number(d.scrapSale) || 0) + (Number(d.otherIncome) || 0);
+
+      // Percentages of Total Revenue
+      const sale = Number(d.sale) || 1;
+      d.smPct = (d.sheetMetal / sale) * 100;
+      d.maPct = (d.machineParts / sale) * 100;
+      d.corePct = (d.totalMaSm / sale) * 100;
+      d.opPct = (d.operationCharge / sale) * 100;
+      d.scrapOtherPct = (scrapAndOther / sale) * 100;
+      d.scrapAndOther = scrapAndOther;
+
+      // Raw mat use % of Core Sales (MA+SM)
+      if (d.totalMaSm > 0) {
+        d.rawMatUsePct = (d.totalRawUse / d.totalMaSm) * 100;
+      }
+
+      // Cost Breakdown %
+      d.mfgTotalOp = (Number(d.mfgCost) || 0) + (Number(d.adminCost) || 0);
+      d.mfgPct = (d.mfgCost / sale) * 100;
+      d.rmRevPct = (d.totalRawUse / sale) * 100;
+      d.adminPct = (d.adminCost / sale) * 100;
+      d.profitPct = (d.netProfit / sale) * 100;
+
+      // Workforce metrics
+      d.totalHeadcount = (Number(d.manpower) || 0) + (Number(d.subcontract) || 0);
+      const hc = d.totalHeadcount || 1;
+      d.permPct = Math.round((d.manpower / hc) * 100);
+      d.subPct = 100 - d.permPct;
+      d.revPerEmp = Math.round(sale / hc);
+      d.profitPerEmp = Math.round(d.netProfit / hc);
+
+      // Bottom left & middle callouts
+      const topDriverName = d.sheetMetal >= d.machineParts ? "Sheet Metal" : "Machine Parts";
+      const topDriverPct = Math.max(d.smPct, d.maPct).toFixed(1);
+
+      insights.revNote1 = `* Core Product Portfolio (MA + SM) totals ${fmtCurrency(d.totalMaSm, 2)}, contributing ${d.corePct.toFixed(1)}% of Total Sales.`;
+      insights.revNote2 = `* ${topDriverName} represents the largest revenue driver at ${topDriverPct}% of monthly revenue.`;
+
+      const prodCostCombinedPct = (d.mfgPct + d.rmRevPct).toFixed(1);
+      insights.costNote1 = `* Production Costs: Manufacturing (${d.mfgPct.toFixed(1)}%) + Materials (${d.rmRevPct.toFixed(1)}%) consume ${prodCostCombinedPct}% of Revenue.`;
+      insights.costNote2 = `* % Cost/Sale Benchmark is ${Number(d.costSalePct).toFixed(2)}% (internal formula excluding Operation Charge).`;
+
+      if (autoGenerateText) {
+        // 1. FG Movement Insight
+        const fgDiff = d.fgBegin - d.fgEnd; // positive means released stock to sales
+        if (fgDiff >= 0) {
+          insights.line1 = `1. FG Stock Release: Finished goods reduced by ${fmtShortK(fgDiff, 0)}, successfully converting inventory into recognized sales.`;
+        } else {
+          insights.line1 = `1. FG Stock Build-up: Finished goods increased by ${fmtShortK(Math.abs(fgDiff), 0)} to buffer upcoming customer deliveries.`;
+        }
+
+        // 2. WIP Movement Insight
+        const wipDiff = d.wipEnd - d.wipBegin; // positive means WIP built up
+        if (wipDiff > 0) {
+          insights.line2 = `2. Production Bottleneck: WIP grew by ${fmtShortK(wipDiff, 0)}; recommend auditing line bottlenecks to accelerate job completion.`;
+        } else {
+          insights.line2 = `2. Smooth WIP Flow: WIP cleared by ${fmtShortK(Math.abs(wipDiff), 0)}, demonstrating faster shop-floor turnaround.`;
+        }
+
+        // 3. Profit Optimization Insight
+        if (d.netProfit >= 0) {
+          insights.line3 = `3. Profit Optimization: Net profit stands at ${fmtShortK(d.netProfit, 0)} (${d.profitPct.toFixed(2)}%); controlling Manufacturing Cost (${d.mfgPct.toFixed(1)}%) provides strong upside.`;
+        } else {
+          insights.line3 = `3. Turnaround Priority: Net loss of ${fmtShortK(d.netProfit, 0)} (${d.profitPct.toFixed(2)}%); urgent focus required on Manufacturing (${d.mfgPct.toFixed(1)}%) & Material yield.`;
+        }
+
+        document.getElementById('inputInsight1').value = insights.line1;
+        document.getElementById('inputInsight2').value = insights.line2;
+        document.getElementById('inputInsight3').value = insights.line3;
+      }
+    }
+
+    // =========================================================================
+    // 4. RENDER EXACT 16:9 LIVE SLIDE PREVIEW (Matching Reference Image 100%)
+    // =========================================================================
+    function renderSlidePreview() {
+      const d = appData;
+      const selectedFont = document.getElementById('pptFontSelect')?.value || 'Arial';
+      const canvas = document.getElementById('slideCanvas');
+      canvas.style.fontFamily = `'${selectedFont}', sans-serif`;
+
+      // Scale chart bars proportionally
+      const maxRevK = 6000;
+      const smK = d.sheetMetal / 1000;
+      const maK = d.machineParts / 1000;
+      const opK = d.operationCharge / 1000;
+      const scK = d.scrapAndOther / 1000;
+
+      const maxCostK = 5000;
+      const mfgK = d.mfgCost / 1000;
+      const rmK = d.totalRawUse / 1000;
+      const npK = d.netProfit / 1000;
+      const admK = d.adminCost / 1000;
+
+      // Dynamic WIP & FG Labels
+      const wipDelta = d.wipEnd - d.wipBegin;
+      const wipActionText = wipDelta >= 0
+        ? `WIP Build-up +${fmtShortK(wipDelta, 1)}`
+        : `WIP Released -${fmtShortK(Math.abs(wipDelta), 1)}`;
+
+      const fgDelta = d.fgBegin - d.fgEnd;
+      const fgActionText = fgDelta >= 0
+        ? `Inventory Released +${fmtShortK(fgDelta, 1)}`
+        : `FG Stock Build-up -${fmtShortK(Math.abs(fgDelta), 1)}`;
+
+      const isProfitable = d.netProfit >= 0;
+      const profitSign = isProfitable ? "+" : "";
+
+      canvas.innerHTML = `
+        <!-- 1. TOP NAVY HEADER BANNER -->
+        <div style="height: 82px; background: #04245C; padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff;">
+          <div>
+            <div style="font-size: 11px; font-weight: 800; color: #FFD600; letter-spacing: 0.04em; text-transform: uppercase;">
+              EXECUTIVE FINANCIAL REPORT &nbsp;|&nbsp; MANUFACTURING COST PERFORMANCE
+            </div>
+            <div style="font-size: 25px; font-weight: 800; color: #FFFFFF; line-height: 1.2; margin: 1px 0 3px 0;">
+              Income &amp; Profit (Loss) Statement Dashboard
+            </div>
+            <div style="font-size: 11.5px; color: #FFE566; font-weight: 500;">
+              Period: ${d.period} &nbsp; * &nbsp; Data Source: ${d.filename}
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <!-- Green Net Profit Badge -->
+            <div style="background: ${isProfitable ? '#007A4D' : '#C62828'}; border: 1.5px solid ${isProfitable ? '#10B981' : '#EF5350'}; border-radius: 9px; padding: 7px 18px; text-align: center; min-width: 195px;">
+              <div style="font-size: 12px; font-weight: 800; color: #FFFFFF; letter-spacing: 0.02em;">NET PROFIT MARGIN</div>
+              <div style="font-size: 14px; font-weight: 800; color: #FFFFFF;">${d.profitPct.toFixed(2)}% (${profitSign}${fmtCurrency(d.netProfit, 0)})</div>
+            </div>
+            <!-- Dark Cost/Sale Badge -->
+            <div style="background: #2C3539; border: 1.5px solid #64748B; border-radius: 9px; padding: 7px 18px; text-align: center; min-width: 155px;">
+              <div style="font-size: 12px; font-weight: 800; color: #FFD600; letter-spacing: 0.02em;">% COST / SALE</div>
+              <div style="font-size: 14px; font-weight: 800; color: #FFD600;">${Number(d.costSalePct).toFixed(2)}%</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. MAIN CONTENT CONTAINER -->
+        <div style="flex: 1; padding: 12px 22px 6px 22px; display: flex; flex-direction: column; gap: 12px;">
+
+          <!-- ROW OF 4 KPI CARDS -->
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; height: 102px;">
+            
+            <!-- Card 1: Total Revenue -->
+            <div style="background: #FFFFFF; border-radius: 12px; border: 1px solid #D5DCE6; border-top: 4px solid #0F62FE; padding: 10px 14px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 12.5px; font-weight: 800; color: #475569;">TOTAL REVENUE</span>
+                <span style="background: #EBF3FF; color: #0F62FE; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 5px;">Top-Line</span>
+              </div>
+              <div style="font-size: 27px; font-weight: 800; color: #0F62FE; line-height: 1.05;">
+                ${fmtCurrency(d.sale, 0)}
+              </div>
+              <div style="font-size: 11px; color: #475569;">
+                Core Parts (MA+SM): ${fmtShortM(d.totalMaSm)} (${d.corePct.toFixed(1)}%)
+              </div>
+            </div>
+
+            <!-- Card 2: Total Raw Material Use -->
+            <div style="background: #FFFFFF; border-radius: 12px; border: 1px solid #D5DCE6; border-top: 4px solid #00796B; padding: 10px 14px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 12.5px; font-weight: 800; color: #475569;">TOTAL RAW MATERIAL USE</span>
+                <span style="background: #E6F4F1; color: #00796B; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 5px;">Direct Mat</span>
+              </div>
+              <div style="font-size: 27px; font-weight: 800; color: #00796B; line-height: 1.05;">
+                ${fmtCurrency(d.totalRawUse, 0)}
+              </div>
+              <div style="font-size: 11px; color: #475569;">
+                ${d.rawMatUsePct.toFixed(2)}% of Core Sales (SM+MA)
+              </div>
+            </div>
+
+            <!-- Card 3: Manufacturing & Op Cost -->
+            <div style="background: #FFFFFF; border-radius: 12px; border: 1px solid #D5DCE6; border-top: 4px solid #B44C00; padding: 10px 14px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 12.5px; font-weight: 800; color: #475569;">MANUFACTURING &amp; OP COST</span>
+                <span style="background: #FFF3E6; color: #B44C00; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 5px;">% Cost ${Number(d.costSalePct).toFixed(1)}%</span>
+              </div>
+              <div style="font-size: 27px; font-weight: 800; color: #B44C00; line-height: 1.05;">
+                ${fmtCurrency(d.mfgTotalOp, 0)}
+              </div>
+              <div style="font-size: 11px; color: #475569;">
+                Mfg ${fmtShortM(d.mfgCost)} (${d.mfgPct.toFixed(1)}%) | Admin ${fmtShortK(d.adminCost)} (${d.adminPct.toFixed(1)}%)
+              </div>
+            </div>
+
+            <!-- Card 4: Net Profit -->
+            <div style="background: #FFFFFF; border-radius: 12px; border: 1px solid #D5DCE6; border-top: 4px solid #007A4D; padding: 10px 14px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 12.5px; font-weight: 800; color: #475569;">NET PROFIT (PROFITABILITY)</span>
+                <span style="background: #E6F6EC; color: #007A4D; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 5px;">${isProfitable ? 'Profitable' : 'Loss Alert'}</span>
+              </div>
+              <div style="font-size: 27px; font-weight: 800; color: ${isProfitable ? '#007A4D' : '#C62828'}; line-height: 1.05;">
+                ${fmtCurrency(d.netProfit, 0)}
+              </div>
+              <div style="font-size: 11px; color: #475569;">
+                Margin ${d.profitPct.toFixed(2)}% | Headcount: ${d.totalHeadcount} (${fmtShortK(d.revPerEmp)}/Head)
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 3 MAIN COLUMNS -->
+          <div style="flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; min-height: 0;">
+
+            <!-- COLUMN 1: REVENUE STRUCTURE -->
+            <div style="background: #FFFFFF; border-radius: 20px; border: 1px solid #D5DCE6; padding: 12px 16px; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div style="font-size: 12.5px; font-weight: 800; color: #04245C;">REVENUE STRUCTURE</div>
+                <div style="font-size: 10.5px; color: #64748B; border-bottom: 1px solid #E2E8F0; padding-bottom: 5px; margin-bottom: 8px;">
+                  Breakdown by Product Line &amp; Service Stream
+                </div>
+
+                <!-- Horizontal Bar Chart -->
+                <div style="height: 162px; position: relative; padding-left: 78px; padding-right: 16px; padding-top: 6px; padding-bottom: 22px;">
+                  <!-- Vertical Grid Lines -->
+                  <div style="position: absolute; left: 78px; right: 16px; top: 6px; bottom: 22px; display: flex; justify-content: space-between; border-left: 1px solid #94A3B8; border-bottom: 1px solid #94A3B8;">
+                    <div style="border-right: 1px solid #CBD5E1; height: 100%; width: 16.66%;"></div>
+                    <div style="border-right: 1px solid #CBD5E1; height: 100%; width: 16.66%;"></div>
+                    <div style="border-right: 1px solid #CBD5E1; height: 100%; width: 16.66%;"></div>
+                    <div style="border-right: 1px solid #CBD5E1; height: 100%; width: 16.66%;"></div>
+                    <div style="border-right: 1px solid #CBD5E1; height: 100%; width: 16.66%;"></div>
+                    <div style="border-right: 1px solid #CBD5E1; height: 100%; width: 16.66%;"></div>
+                  </div>
+
+                  <!-- Bars -->
+                  <div style="position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; justify-content: space-around;">
+                    <!-- Bar 1: Sheet Metal -->
+                    <div style="display: flex; align-items: center;">
+                      <div style="position: absolute; left: -78px; width: 72px; text-align: right; font-size: 10.5px; color: #0F172A;">Sheet Metal</div>
+                      <div style="height: 18px; background: #1D56F0; width: ${Math.min(95, (smK / maxRevK) * 100)}%;"></div>
+                      <span style="font-size: 10.5px; color: #0F172A; margin-left: 5px; font-weight: 600;">${smK.toFixed(1)}</span>
+                    </div>
+                    <!-- Bar 2: Machine Parts -->
+                    <div style="display: flex; align-items: center;">
+                      <div style="position: absolute; left: -78px; width: 72px; text-align: right; font-size: 10.5px; color: #0F172A;">Machine Parts</div>
+                      <div style="height: 18px; background: #0082C8; width: ${Math.min(95, (maK / maxRevK) * 100)}%;"></div>
+                      <span style="font-size: 10.5px; color: #0F172A; margin-left: 5px; font-weight: 600;">${maK.toFixed(1)}</span>
+                    </div>
+                    <!-- Bar 3: Operation Chg -->
+                    <div style="display: flex; align-items: center;">
+                      <div style="position: absolute; left: -78px; width: 72px; text-align: right; font-size: 10.5px; color: #0F172A;">Operation Chg</div>
+                      <div style="height: 18px; background: #4F46E5; width: ${Math.min(95, (opK / maxRevK) * 100)}%;"></div>
+                      <span style="font-size: 10.5px; color: #0F172A; margin-left: 5px; font-weight: 600;">${opK.toFixed(1)}</span>
+                    </div>
+                    <!-- Bar 4: Scrap & Other -->
+                    <div style="display: flex; align-items: center;">
+                      <div style="position: absolute; left: -78px; width: 72px; text-align: right; font-size: 10.5px; color: #0F172A;">Scrap &amp; Other</div>
+                      <div style="height: 18px; background: #D97706; width: ${Math.max(2, Math.min(95, (scK / maxRevK) * 100))}%;"></div>
+                      <span style="font-size: 10.5px; color: #0F172A; margin-left: 5px; font-weight: 600;">${scK.toFixed(1)}</span>
+                    </div>
+                  </div>
+
+                  <!-- X-Axis Scale Labels -->
+                  <div style="position: absolute; left: 75px; right: 10px; bottom: 3px; display: flex; justify-content: space-between; font-size: 10px; color: #334155;">
+                    <span>0</span><span>1000</span><span>2000</span><span>3000</span><span>4000</span><span>5000</span><span>6000</span>
+                  </div>
+                </div>
+
+                <!-- Revenue Table -->
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px;">
+                  <tbody>
+                    <tr style="border-bottom: 1px solid #F1F5F9;">
+                      <td style="padding: 5px 4px; font-weight: 700; color: #0F172A;">Sheet metal parts</td>
+                      <td style="padding: 5px 4px; text-align: right; font-weight: 700; color: #0F172A;">${fmtCurrency(d.sheetMetal)}</td>
+                      <td style="padding: 5px 4px; text-align: right; font-weight: 700; color: #0F172A; width: 58px;">${d.smPct.toFixed(1)}%</td>
+                    </tr>
+                    <tr style="background: #F8FAFC; border-bottom: 1px solid #F1F5F9;">
+                      <td style="padding: 5px 4px; color: #1E293B;">Machine parts</td>
+                      <td style="padding: 5px 4px; text-align: right; color: #1E293B;">${fmtCurrency(d.machineParts)}</td>
+                      <td style="padding: 5px 4px; text-align: right; color: #1E293B;">${d.maPct.toFixed(1)}%</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #F1F5F9;">
+                      <td style="padding: 5px 4px; color: #1E293B;">Operation charge</td>
+                      <td style="padding: 5px 4px; text-align: right; color: #1E293B;">${fmtCurrency(d.operationCharge)}</td>
+                      <td style="padding: 5px 4px; text-align: right; color: #1E293B;">${d.opPct.toFixed(1)}%</td>
+                    </tr>
+                    <tr style="background: #F8FAFC; border-bottom: 1px solid #E2E8F0;">
+                      <td style="padding: 5px 4px; color: #1E293B;">Scrap sale + Other</td>
+                      <td style="padding: 5px 4px; text-align: right; color: #1E293B;">${fmtCurrency(d.scrapAndOther)}</td>
+                      <td style="padding: 5px 4px; text-align: right; color: #1E293B;">${d.scrapOtherPct.toFixed(1)}%</td>
+                    </tr>
+                    <tr style="background: #EBF3FF;">
+                      <td style="padding: 6px 4px; font-weight: 800; color: #04245C;">Total Sales Revenue</td>
+                      <td style="padding: 6px 4px; text-align: right; font-weight: 800; color: #04245C;">${fmtCurrency(d.sale)}</td>
+                      <td style="padding: 6px 4px; text-align: right; font-weight: 800; color: #04245C;">100.0%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Bottom Callout Box -->
+              <div style="background: #F0F7FF; border: 1px solid #BAE6FD; border-radius: 10px; padding: 8px 10px; font-size: 10.5px; color: #0369A1; line-height: 1.35;">
+                <div>${insights.revNote1}</div>
+                <div style="margin-top: 3px;">${insights.revNote2}</div>
+              </div>
+            </div>
+
+            <!-- COLUMN 2: COST & P&L STRUCTURE -->
+            <div style="background: #FFFFFF; border-radius: 20px; border: 1px solid #D5DCE6; padding: 12px 16px; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div style="font-size: 12.5px; font-weight: 800; color: #B44C00;">COST &amp; P&amp;L STRUCTURE</div>
+                <div style="font-size: 10.5px; color: #64748B; border-bottom: 1px solid #E2E8F0; padding-bottom: 5px; margin-bottom: 8px;">
+                  Cost Allocation: Manufacturing, Materials, Admin &amp; Profit
+                </div>
+
+                <!-- Vertical Column Chart -->
+                <div style="height: 162px; position: relative; padding-left: 34px; padding-right: 10px; padding-top: 12px; padding-bottom: 22px;">
+                  <!-- Y-Axis Labels & Horizontal Grid Lines -->
+                  <div style="position: absolute; left: 34px; right: 10px; top: 12px; bottom: 22px; display: flex; flex-direction: column; justify-content: space-between; border-left: 1px solid #94A3B8; border-bottom: 1px solid #94A3B8;">
+                    ${[5000,4500,4000,3500,3000,2500,2000,1500,1000,500,0].map(val => `
+                      <div style="border-top: ${val===0 ? 'none' : '1px solid #CBD5E1'}; width: 100%; height: 0; position: relative;">
+                        <span style="position: absolute; left: -32px; top: -6px; font-size: 9.5px; color: #334155; width: 28px; text-align: right;">${val}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+
+                  <!-- Vertical Bars -->
+                  <div style="position: relative; z-index: 2; height: 100%; display: flex; align-items: flex-end; justify-content: space-around; padding: 0 12px;">
+                    <!-- Mfg Cost -->
+                    <div style="display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; width: 54px;">
+                      <span style="font-size: 10px; color: #0F172A; font-weight: 600; margin-bottom: 2px;">${mfgK.toFixed(2)}</span>
+                      <div style="width: 34px; background: #A84300; height: ${Math.min(96, Math.max(3, (mfgK / maxCostK) * 100))}%;"></div>
+                    </div>
+                    <!-- Raw Material -->
+                    <div style="display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; width: 54px;">
+                      <span style="font-size: 10px; color: #0F172A; font-weight: 600; margin-bottom: 2px;">${rmK.toFixed(2)}</span>
+                      <div style="width: 34px; background: #00897B; height: ${Math.min(96, Math.max(3, (rmK / maxCostK) * 100))}%;"></div>
+                    </div>
+                    <!-- Net Profit -->
+                    <div style="display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; width: 54px;">
+                      <span style="font-size: 10px; color: #0F172A; font-weight: 600; margin-bottom: 2px;">${npK.toFixed(2)}</span>
+                      <div style="width: 34px; background: ${isProfitable ? '#008A5E' : '#C62828'}; height: ${Math.min(96, Math.max(3, (Math.abs(npK) / maxCostK) * 100))}%;"></div>
+                    </div>
+                    <!-- Admin & Int -->
+                    <div style="display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; width: 54px;">
+                      <span style="font-size: 10px; color: #0F172A; font-weight: 600; margin-bottom: 2px;">${admK.toFixed(2)}</span>
+                      <div style="width: 34px; background: #4F46E5; height: ${Math.min(96, Math.max(3, (admK / maxCostK) * 100))}%;"></div>
+                    </div>
+                  </div>
+
+                  <!-- X-Axis Categories -->
+                  <div style="position: absolute; left: 34px; right: 10px; bottom: 3px; display: flex; justify-content: space-around; padding: 0 12px; font-size: 10px; color: #0F172A;">
+                    <span style="width: 64px; text-align: center;">Mfg Cost</span>
+                    <span style="width: 64px; text-align: center;">Raw Material</span>
+                    <span style="width: 64px; text-align: center;">Net Profit</span>
+                    <span style="width: 64px; text-align: center;">Admin &amp; Int</span>
+                  </div>
+                </div>
+
+                <!-- Cost Table -->
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px;">
+                  <tbody>
+                    <tr style="border-bottom: 1px solid #F1F5F9;">
+                      <td style="padding: 5px 4px; font-weight: 700; color: #0F172A;">Manufacturing Cost</td>
+                      <td style="padding: 5px 4px; text-align: right; font-weight: 700; color: #0F172A;">${fmtCurrency(d.mfgCost)}</td>
+                      <td style="padding: 5px 4px; text-align: right; font-weight: 700; color: #0F172A; width: 58px;">${d.mfgPct.toFixed(2)}%</td>
+                    </tr>
+                    <tr style="background: #F8FAFC; border-bottom: 1px solid #F1F5F9;">
+                      <td style="padding: 5px 4px; color: #1E293B;">Raw Material Used</td>
+                      <td style="padding: 5px 4px; text-align: right; color: #1E293B;">${fmtCurrency(d.totalRawUse)}</td>
+                      <td style="padding: 5px 4px; text-align: right; color: #1E293B;">${d.rmRevPct.toFixed(2)}%</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #F1F5F9;">
+                      <td style="padding: 5px 4px; color: #1E293B;">Admin Cost + Int Exp</td>
+                      <td style="padding: 5px 4px; text-align: right; color: #1E293B;">${fmtCurrency(d.adminCost)}</td>
+                      <td style="padding: 5px 4px; text-align: right; color: #1E293B;">${d.adminPct.toFixed(2)}%</td>
+                    </tr>
+                    <tr style="background: #E8F8F0; border-bottom: 1px solid #D1FAE5;">
+                      <td style="padding: 5px 4px; font-weight: 700; color: #007A4D;">Net Profit</td>
+                      <td style="padding: 5px 4px; text-align: right; font-weight: 700; color: #007A4D;">${fmtCurrency(d.netProfit)}</td>
+                      <td style="padding: 5px 4px; text-align: right; font-weight: 700; color: #007A4D;">${d.profitPct.toFixed(2)}%</td>
+                    </tr>
+                    <tr style="background: #F8FAFC;">
+                      <td style="padding: 6px 4px; font-weight: 800; color: #0F172A;">Total Sales Allocation</td>
+                      <td style="padding: 6px 4px; text-align: right; font-weight: 800; color: #0F172A;">${fmtCurrency(d.sale)}</td>
+                      <td style="padding: 6px 4px; text-align: right; font-weight: 800; color: #0F172A;">100.0%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Bottom Callout Box -->
+              <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 8px 10px; font-size: 10.5px; color: #92400E; line-height: 1.35;">
+                <div>${insights.costNote1}</div>
+                <div style="margin-top: 3px;">${insights.costNote2}</div>
+              </div>
+            </div>
+
+            <!-- COLUMN 3: INVENTORY & WORKFORCE -->
+            <div style="background: #FFFFFF; border-radius: 20px; border: 1px solid #D5DCE6; padding: 12px 16px; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div style="font-size: 12.5px; font-weight: 800; color: #00695C;">INVENTORY &amp; WORKFORCE</div>
+                <div style="font-size: 10.5px; color: #64748B; border-bottom: 1px solid #E2E8F0; padding-bottom: 5px; margin-bottom: 8px;">
+                  Inventory Flow Dynamics &amp; Headcount Productivity
+                </div>
+
+                <!-- Sub-card 1: Inventory Movement -->
+                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 9px 12px; margin-bottom: 8px;">
+                  <div style="font-size: 11px; font-weight: 800; color: #00695C; margin-bottom: 5px;">
+                    INVENTORY MOVEMENT (3 Categories)
+                  </div>
+                  <div style="font-size: 10.5px; font-weight: 700; color: #0F172A; line-height: 1.3; margin-bottom: 5px;">
+                    1. Raw Material (RM)<br>
+                    &nbsp;&nbsp;Begin ${fmtShortK(d.rmBegin, 0)} + Buy ${fmtShortK(d.rmPurchase, 0)} - End ${fmtShortK(d.rmEnd, 0)} = Used ${fmtShortK(d.rmUse, 1)}
+                  </div>
+                  <div style="font-size: 10.5px; font-weight: 700; color: #B44C00; line-height: 1.3; margin-bottom: 5px;">
+                    2. Work in Process (WIP)<br>
+                    &nbsp;&nbsp;Begin ${fmtShortK(d.wipBegin, 0)} -&gt; End ${fmtShortK(d.wipEnd, 0)} = ${wipActionText}
+                  </div>
+                  <div style="font-size: 10.5px; font-weight: 700; color: #2E7D32; line-height: 1.3; margin-bottom: 6px;">
+                    3. Finished Goods (FG)<br>
+                    &nbsp;&nbsp;Begin ${fmtShortK(d.fgBegin, 0)} -&gt; End ${fmtShortK(d.fgEnd, 0)} = ${fgActionText}
+                  </div>
+                  <div style="font-size: 10.5px; font-weight: 800; color: #0F62FE;">
+                    &gt;&gt; Total Raw Mat Used: ${fmtCurrency(d.totalRawUse)} (${d.rawMatUsePct.toFixed(2)}% of Core Sales)
+                  </div>
+                </div>
+
+                <!-- Sub-card 2: Workforce & Productivity -->
+                <div style="background: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 12px; padding: 8px 12px; margin-bottom: 8px;">
+                  <div style="font-size: 11px; font-weight: 800; color: #3730A3; margin-bottom: 4px;">
+                    WORKFORCE &amp; PRODUCTIVITY
+                  </div>
+                  <div style="font-size: 10.5px; font-weight: 700; color: #1E293B; line-height: 1.45;">
+                    * Total Workforce: ${d.totalHeadcount} (Permanent: ${d.manpower} [${d.permPct}%] | Sub-contract: ${d.subcontract} [${d.subPct}%])<br>
+                    * Revenue per Employee: ${fmtCurrency(d.revPerEmp, 0)} / Person<br>
+                    * Net Profit per Employee: ${fmtCurrency(d.profitPerEmp, 0)} / Person
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sub-card 3: Executive Takeaways -->
+              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 9px 12px;">
+                <div style="font-size: 11px; font-weight: 800; color: #1E293B; margin-bottom: 4px;">
+                  EXECUTIVE TAKEAWAYS &amp; ACTIONABLE INSIGHTS
+                </div>
+                <div style="font-size: 10px; font-weight: 700; color: #6D4C41; line-height: 1.35; display: flex; flex-direction: column; gap: 4px;">
+                  <div>${insights.line1}</div>
+                  <div>${insights.line2}</div>
+                  <div>${insights.line3}</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 3. BOTTOM FOOTER -->
+        <div style="height: 22px; padding: 0 24px; display: flex; align-items: center; font-size: 10px; color: #64748B;">
+          Remarks: 1. % Cost/Sale (${Number(d.costSalePct).toFixed(2)}%) excludes Operation Charge &nbsp;|&nbsp; 2. % Raw Mat Use (${d.rawMatUsePct.toFixed(2)}%) = Total Raw Mat Use / (SM + MA Sales) &nbsp;|&nbsp; Source: ${d.filename} &nbsp;|&nbsp; Designed with Care by Ant for P'Ton
+        </div>
+      `;
+
+      scalePreviewToFit();
+    }
+
+    function scalePreviewToFit() {
+      const wrapper = document.getElementById('slidePreviewContainer');
+      const inner = document.getElementById('slideCanvas');
+      if (!wrapper || !inner) return;
+      const scale = wrapper.clientWidth / 1280;
+      inner.style.transform = `scale(${scale})`;
+    }
+
+    window.addEventListener('resize', scalePreviewToFit);
+
+    // =========================================================================
+    // 5. SMART EXCEL PARSER (SheetJS)
+    // =========================================================================
+    function handleFileSelect(evt) {
+      const file = evt.target.files?.[0];
+      if (file) parseExcelFile(file);
+    }
+
+    // Setup Drag & Drop
+    const dropZone = document.getElementById('dropZone');
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drop-zone-active');
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('drop-zone-active');
+    });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drop-zone-active');
+      const file = e.dataTransfer.files?.[0];
+      if (file) parseExcelFile(file);
+    });
+
+    function parseNumCell(val) {
+      if (typeof val === 'number') return val;
+      if (!val) return 0;
+      const cleaned = String(val).replace(/,/g, '').replace(/%/g, '').replace(/฿/g, '').trim();
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+
+    function parseExcelFile(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+
+          extractMetricsFromRows(rows, file.name);
+          showToast(`อ่านข้อมูลจากไฟล์ "${file.name}" สำเร็จ!`, "success");
+        } catch (err) {
+          console.error(err);
+          showToast("ไม่สามารถอ่านไฟล์ Excel ได้ กรุณาตรวจสอบรูปแบบไฟล์", "error");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function extractMetricsFromRows(rows, filename) {
+      let currentSection = "";
+      const extracted = {
+        filename: filename,
+        period: "October 2026 (Oct'26)"
+      };
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length === 0) continue;
+
+        const labelRaw = String(row[0] || "").trim();
+        const label = labelRaw.toLowerCase();
+
+        // Find first non-empty value cell in the row (usually index 1 or 2)
+        let valCell = row[1];
+        if ((valCell === "" || valCell === null || valCell === undefined) && row.length > 2) {
+          valCell = row[2];
+        }
+
+        // Check if header row has period like Oct'26, Nov'26
+        if (!label && valCell && String(valCell).length <= 15) {
+          const pStr = String(valCell).trim();
+          extracted.shortPeriod = pStr;
+          extracted.period = expandPeriodName(pStr);
+          continue;
+        }
+
+        // Track Section Headers (Raw material, Work in Process, Finish goods)
+        if (label.includes("raw material")) {
+          currentSection = "RM";
+          continue;
+        } else if (label.includes("work in process")) {
+          currentSection = "WIP";
+          continue;
+        } else if (label.includes("finish goods") || label.includes("finished goods")) {
+          currentSection = "FG";
+          continue;
+        }
+
+        const numVal = parseNumCell(valCell);
+
+        // Match specific items
+        if (label === "sale" || label === "sales" || label === "total sale") {
+          extracted.sale = numVal;
+        } else if (label.includes("sheet metal")) {
+          extracted.sheetMetal = numVal;
+        } else if (label.includes("machine part")) {
+          extracted.machineParts = numVal;
+        } else if (label.includes("total ma+sm") || label.includes("ma+sm")) {
+          extracted.totalMaSm = numVal;
+        } else if (label.includes("operation charge")) {
+          extracted.operationCharge = numVal;
+        } else if (label.includes("scap sale") || label.includes("scrap sale")) {
+          extracted.scrapSale = numVal;
+        } else if (label.includes("other income")) {
+          extracted.otherIncome = numVal;
+        } else if (label.includes("total raw. use") || label.includes("total raw use")) {
+          extracted.totalRawUse = numVal;
+          currentSection = "";
+        } else if (label.includes("raw mat use %")) {
+          extracted.rawMatUsePct = numVal <= 1 && numVal > 0 ? numVal * 100 : numVal;
+        } else if (label.includes("manufac.cost") || label.includes("manufacturing cost")) {
+          extracted.mfgCost = numVal;
+        } else if (label.includes("admin cost")) {
+          extracted.adminCost = numVal;
+        } else if (label.includes("net profit")) {
+          extracted.netProfit = numVal;
+        } else if (label.includes("profit (loss )%") || label.includes("profit (loss)%") || label.includes("profit %")) {
+          extracted.profitPct = numVal <= 1 && numVal > -1 && numVal !== 0 ? numVal * 100 : numVal;
+        } else if (label.includes("% cost/sale") || label.includes("cost/sale")) {
+          extracted.costSalePct = numVal <= 1 && numVal > 0 ? numVal * 100 : numVal;
+        } else if (label.includes("man-power") || label.includes("manpower")) {
+          extracted.manpower = Math.round(numVal);
+        } else if (label.includes("sub-contract") || label.includes("subcontract")) {
+          extracted.subcontract = Math.round(numVal);
+        } else if (label.includes("beginning")) {
+          if (currentSection === "RM") extracted.rmBegin = numVal;
+          else if (currentSection === "WIP") extracted.wipBegin = numVal;
+          else if (currentSection === "FG") extracted.fgBegin = numVal;
+        } else if (label.includes("purchase")) {
+          if (currentSection === "RM") extracted.rmPurchase = numVal;
+        } else if (label.includes("ending")) {
+          if (currentSection === "RM") extracted.rmEnd = numVal;
+          else if (currentSection === "WIP") extracted.wipEnd = numVal;
+          else if (currentSection === "FG") extracted.fgEnd = numVal;
+        } else if (label === "use" || label === "used") {
+          if (currentSection === "RM") extracted.rmUse = numVal;
+          else if (currentSection === "WIP") extracted.wipUse = numVal;
+          else if (currentSection === "FG") extracted.fgUse = numVal;
+        }
+      }
+
+      // Merge extracted fields into appData
+      Object.keys(extracted).forEach(k => {
+        if (extracted[k] !== undefined && extracted[k] !== null && extracted[k] !== "") {
+          appData[k] = extracted[k];
+        }
+      });
+
+      document.getElementById('currentFileNameText').textContent = `${appData.filename} (${appData.period})`;
+      populateInspectorFields();
+      recalculateDerivedMetrics(true);
+      renderSlidePreview();
+    }
+
+    function expandPeriodName(shortStr) {
+      const monthMap = {
+        jan: "January", feb: "February", mar: "March", apr: "April",
+        may: "May", jun: "June", jul: "July", aug: "August",
+        sep: "September", oct: "October", nov: "November", dec: "December"
+      };
+      const m = shortStr.match(/([A-Za-z]{3})['’\- ]?(\d{2,4})/);
+      if (m) {
+        const mKey = m[1].toLowerCase();
+        const yr = m[2].length === 2 ? "20" + m[2] : m[2];
+        if (monthMap[mKey]) {
+          return `${monthMap[mKey]} ${yr} (${shortStr})`;
+        }
+      }
+      return shortStr;
+    }
+
+    // =========================================================================
+    // 6. NATIVE POWERPOINT (.PPTX) GENERATOR (PptxGenJS - 100% TrueType Font Safe)
+    // =========================================================================
+    async function generatePowerPoint() {
+      const btn = document.getElementById('btnExportPptx');
+      const origHtml = btn.innerHTML;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Generating .pptx...</span>`;
+      btn.disabled = true;
+
+      try {
+        const pptx = new PptxGenJS();
+        pptx.layout = 'LAYOUT_WIDE'; // 13.333 x 7.5 inches
+        pptx.author = 'Executive P&L Generator';
+        pptx.title = `Income & Profit (Loss) Statement Dashboard - ${appData.period}`;
+
+        const fontName = document.getElementById('pptFontSelect')?.value || 'Arial';
+        const d = appData;
+        const slide = pptx.addSlide();
+        slide.background = { color: 'F4F6F9' };
+
+        const isProfitable = d.netProfit >= 0;
+        const profitSign = isProfitable ? '+' : '';
+
+        // ---------------------------------------------------------------------
+        // 1. TOP NAVY HEADER BANNER
+        // ---------------------------------------------------------------------
+        slide.addShape(pptx.shapes.RECTANGLE, {
+          x: 0, y: 0, w: 13.333, h: 0.88,
+          fill: { color: '04245C' },
+          line: { color: '04245C', width: 0 }
+        });
+
+        slide.addText('EXECUTIVE FINANCIAL REPORT  |  MANUFACTURING COST PERFORMANCE', {
+          x: 0.25, y: 0.08, w: 8.5, h: 0.2,
+          fontFace: fontName, fontSize: 8.5, bold: true, color: 'FFD600', margin: 0
+        });
+
+        slide.addText('Income & Profit (Loss) Statement Dashboard', {
+          x: 0.25, y: 0.26, w: 8.5, h: 0.36,
+          fontFace: fontName, fontSize: 20, bold: true, color: 'FFFFFF', margin: 0
+        });
+
+        slide.addText(`Period: ${d.period}   *   Data Source: ${d.filename}`, {
+          x: 0.25, y: 0.62, w: 8.5, h: 0.2,
+          fontFace: fontName, fontSize: 9, color: 'FFE566', margin: 0
+        });
+
+        // Header Right Badge 1: NET PROFIT MARGIN
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+          x: 9.25, y: 0.14, w: 2.05, h: 0.58,
+          rectRadius: 0.12,
+          fill: { color: isProfitable ? '007A4D' : 'C62828' },
+          line: { color: isProfitable ? '10B981' : 'EF5350', width: 1 }
+        });
+        slide.addText([
+          { text: 'NET PROFIT MARGIN\n', options: { fontSize: 9, bold: true, color: 'FFFFFF' } },
+          { text: `${d.profitPct.toFixed(2)}% (${profitSign}${fmtCurrency(d.netProfit, 0)})`, options: { fontSize: 10.5, bold: true, color: 'FFFFFF' } }
+        ], {
+          x: 9.25, y: 0.15, w: 2.05, h: 0.56,
+          fontFace: fontName, align: 'center', valign: 'middle', margin: 0
+        });
+
+        // Header Right Badge 2: % COST / SALE
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+          x: 11.42, y: 0.14, w: 1.66, h: 0.58,
+          rectRadius: 0.12,
+          fill: { color: '2C3539' },
+          line: { color: '64748B', width: 1 }
+        });
+        slide.addText([
+          { text: '% COST / SALE\n', options: { fontSize: 9, bold: true, color: 'FFD600' } },
+          { text: `${Number(d.costSalePct).toFixed(2)}%`, options: { fontSize: 11, bold: true, color: 'FFD600' } }
+        ], {
+          x: 11.42, y: 0.15, w: 1.66, h: 0.56,
+          fontFace: fontName, align: 'center', valign: 'middle', margin: 0
+        });
+
+        // ---------------------------------------------------------------------
+        // 2. FOUR TOP KPI CARDS
+        // ---------------------------------------------------------------------
+        const kpiCards = [
+          {
+            title: 'TOTAL REVENUE',
+            badge: 'Top-Line', badgeBg: 'EBF3FF', badgeColor: '0F62FE',
+            accent: '0F62FE',
+            value: fmtCurrency(d.sale, 0),
+            sub: `Core Parts (MA+SM): ${fmtShortM(d.totalMaSm)} (${d.corePct.toFixed(1)}%)`
+          },
+          {
+            title: 'TOTAL RAW MATERIAL USE',
+            badge: 'Direct Mat', badgeBg: 'E6F4F1', badgeColor: '00796B',
+            accent: '00796B',
+            value: fmtCurrency(d.totalRawUse, 0),
+            sub: `${d.rawMatUsePct.toFixed(2)}% of Core Sales (SM+MA)`
+          },
+          {
+            title: 'MANUFACTURING & OP COST',
+            badge: `% Cost ${Number(d.costSalePct).toFixed(1)}%`, badgeBg: 'FFF3E6', badgeColor: 'B44C00',
+            accent: 'B44C00',
+            value: fmtCurrency(d.mfgTotalOp, 0),
+            sub: `Mfg ${fmtShortM(d.mfgCost)} (${d.mfgPct.toFixed(1)}%) | Admin ${fmtShortK(d.adminCost)} (${d.adminPct.toFixed(1)}%)`
+          },
+          {
+            title: 'NET PROFIT (PROFITABILITY)',
+            badge: isProfitable ? 'Profitable' : 'Loss Alert', badgeBg: 'E6F6EC', badgeColor: '007A4D',
+            accent: isProfitable ? '007A4D' : 'C62828',
+            value: fmtCurrency(d.netProfit, 0),
+            sub: `Margin ${d.profitPct.toFixed(2)}% | Headcount: ${d.totalHeadcount} (${fmtShortK(d.revPerEmp)}/Head)`
+          }
+        ];
+
+        kpiCards.forEach((c, idx) => {
+          const cardX = 0.25 + idx * 3.24;
+          const cardY = 1.02;
+          const cardW = 3.11;
+          const cardH = 1.06;
+
+          // Base white card
+          slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+            x: cardX, y: cardY, w: cardW, h: cardH,
+            rectRadius: 0.1,
+            fill: { color: 'FFFFFF' },
+            line: { color: 'D5DCE6', width: 1 }
+          });
+
+          // Top colored bar
+          slide.addShape(pptx.shapes.RECTANGLE, {
+            x: cardX + 0.08, y: cardY, w: cardW - 0.16, h: 0.05,
+            fill: { color: c.accent },
+            line: { color: c.accent, width: 0 }
+          });
+
+          // Card Title
+          slide.addText(c.title, {
+            x: cardX + 0.14, y: cardY + 0.1, w: 2.1, h: 0.22,
+            fontFace: fontName, fontSize: 9.5, bold: true, color: '475569', margin: 0
+          });
+
+          // Small Pill Badge
+          slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+            x: cardX + cardW - 0.92, y: cardY + 0.09, w: 0.78, h: 0.22,
+            rectRadius: 0.06,
+            fill: { color: c.badgeBg },
+            line: { color: c.badgeBg, width: 0 }
+          });
+          slide.addText(c.badge, {
+            x: cardX + cardW - 0.92, y: cardY + 0.09, w: 0.78, h: 0.22,
+            fontFace: fontName, fontSize: 7.5, bold: true, color: c.badgeColor, align: 'center', valign: 'middle', margin: 0
+          });
+
+          // Main Number
+          slide.addText(c.value, {
+            x: cardX + 0.14, y: cardY + 0.34, w: cardW - 0.28, h: 0.42,
+            fontFace: fontName, fontSize: 21, bold: true, color: c.accent, margin: 0
+          });
+
+          // Subtitle
+          slide.addText(c.sub, {
+            x: cardX + 0.14, y: cardY + 0.78, w: cardW - 0.28, h: 0.2,
+            fontFace: fontName, fontSize: 8.5, color: '475569', margin: 0
+          });
+        });
+
+        // ---------------------------------------------------------------------
+        // 3. THREE MAIN COLUMNS CONTAINERS
+        // ---------------------------------------------------------------------
+        const colY = 2.20;
+        const colH = 4.95;
+        const colW = 4.18;
+        const colXs = [0.25, 4.57, 8.90];
+
+        const colHeaders = [
+          { title: 'REVENUE STRUCTURE', sub: 'Breakdown by Product Line & Service Stream', color: '04245C' },
+          { title: 'COST & P&L STRUCTURE', sub: 'Cost Allocation: Manufacturing, Materials, Admin & Profit', color: 'B44C00' },
+          { title: 'INVENTORY & WORKFORCE', sub: 'Inventory Flow Dynamics & Headcount Productivity', color: '00695C' }
+        ];
+
+        colHeaders.forEach((ch, idx) => {
+          const cx = colXs[idx];
+          slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+            x: cx, y: colY, w: colW, h: colH,
+            rectRadius: 0.18,
+            fill: { color: 'FFFFFF' },
+            line: { color: 'D5DCE6', width: 1 }
+          });
+
+          slide.addText(ch.title, {
+            x: cx + 0.18, y: colY + 0.12, w: colW - 0.36, h: 0.2,
+            fontFace: fontName, fontSize: 10, bold: true, color: ch.color, margin: 0
+          });
+
+          slide.addText(ch.sub, {
+            x: cx + 0.18, y: colY + 0.30, w: colW - 0.36, h: 0.18,
+            fontFace: fontName, fontSize: 8.2, color: '64748B', margin: 0
+          });
+
+          slide.addShape(pptx.shapes.LINE, {
+            x: cx + 0.18, y: colY + 0.52, w: colW - 0.36, h: 0,
+            line: { color: 'E2E8F0', width: 0.75 }
+          });
+        });
+
+        // ---------------------------------------------------------------------
+        // COLUMN 1 CONTENT: HORIZONTAL BAR CHART + TABLE + CALLOUT
+        // ---------------------------------------------------------------------
+        const c1X = colXs[0];
+        const chart1X = c1X + 0.92;
+        const chart1Y = colY + 0.62;
+        const chart1W = 2.85;
+        const chart1H = 1.48;
+
+        // Vertical grid lines (0 to 6000)
+        for (let g = 0; g <= 6; g++) {
+          const gx = chart1X + (g / 6) * chart1W;
+          slide.addShape(pptx.shapes.LINE, {
+            x: gx, y: chart1Y, w: 0, h: chart1H,
+            line: { color: g === 0 ? '64748B' : 'CBD5E1', width: 0.75 }
+          });
+          slide.addText(String(g * 1000), {
+            x: gx - 0.22, y: chart1Y + chart1H + 0.03, w: 0.44, h: 0.16,
+            fontFace: fontName, fontSize: 7.5, color: '334155', align: 'center', margin: 0
+          });
+        }
+        // Bottom axis line
+        slide.addShape(pptx.shapes.LINE, {
+          x: chart1X, y: chart1Y + chart1H, w: chart1W, h: 0,
+          line: { color: '64748B', width: 0.75 }
+        });
+
+        const revBars = [
+          { label: 'Sheet Metal', valK: d.sheetMetal / 1000, color: '1D56F0' },
+          { label: 'Machine Parts', valK: d.machineParts / 1000, color: '0082C8' },
+          { label: 'Operation Chg', valK: d.operationCharge / 1000, color: '4F46E5' },
+          { label: 'Scrap & Other', valK: d.scrapAndOther / 1000, color: 'D97706' }
+        ];
+
+        revBars.forEach((b, i) => {
+          const by = chart1Y + 0.10 + i * 0.35;
+          const bw = Math.max(0.05, Math.min(chart1W, (b.valK / 6000) * chart1W));
+
+          slide.addText(b.label, {
+            x: c1X + 0.12, y: by - 0.02, w: 0.76, h: 0.22,
+            fontFace: fontName, fontSize: 8, color: '0F172A', align: 'right', valign: 'middle', margin: 0
+          });
+
+          slide.addShape(pptx.shapes.RECTANGLE, {
+            x: chart1X, y: by, w: bw, h: 0.18,
+            fill: { color: b.color },
+            line: { color: b.color, width: 0 }
+          });
+
+          slide.addText(b.valK.toFixed(1), {
+            x: chart1X + bw + 0.04, y: by - 0.02, w: 0.55, h: 0.22,
+            fontFace: fontName, fontSize: 8, bold: true, color: '0F172A', valign: 'middle', margin: 0
+          });
+        });
+
+        // Revenue Table
+        const revTableRows = [
+          [
+            { text: 'Sheet metal parts', options: { bold: true, color: '0F172A', fill: 'FFFFFF' } },
+            { text: fmtCurrency(d.sheetMetal), options: { bold: true, color: '0F172A', align: 'right', fill: 'FFFFFF' } },
+            { text: `${d.smPct.toFixed(1)}%`, options: { bold: true, color: '0F172A', align: 'right', fill: 'FFFFFF' } }
+          ],
+          [
+            { text: 'Machine parts', options: { color: '1E293B', fill: 'F8FAFC' } },
+            { text: fmtCurrency(d.machineParts), options: { color: '1E293B', align: 'right', fill: 'F8FAFC' } },
+            { text: `${d.maPct.toFixed(1)}%`, options: { color: '1E293B', align: 'right', fill: 'F8FAFC' } }
+          ],
+          [
+            { text: 'Operation charge', options: { color: '1E293B', fill: 'FFFFFF' } },
+            { text: fmtCurrency(d.operationCharge), options: { color: '1E293B', align: 'right', fill: 'FFFFFF' } },
+            { text: `${d.opPct.toFixed(1)}%`, options: { color: '1E293B', align: 'right', fill: 'FFFFFF' } }
+          ],
+          [
+            { text: 'Scrap sale + Other', options: { color: '1E293B', fill: 'F8FAFC' } },
+            { text: fmtCurrency(d.scrapAndOther), options: { color: '1E293B', align: 'right', fill: 'F8FAFC' } },
+            { text: `${d.scrapOtherPct.toFixed(1)}%`, options: { color: '1E293B', align: 'right', fill: 'F8FAFC' } }
+          ],
+          [
+            { text: 'Total Sales Revenue', options: { bold: true, color: '04245C', fill: 'EBF3FF' } },
+            { text: fmtCurrency(d.sale), options: { bold: true, color: '04245C', align: 'right', fill: 'EBF3FF' } },
+            { text: '100.0%', options: { bold: true, color: '04245C', align: 'right', fill: 'EBF3FF' } }
+          ]
+        ];
+
+        slide.addTable(revTableRows, {
+          x: c1X + 0.16, y: colY + 2.40, w: colW - 0.32,
+          colW: [1.85, 1.35, 0.66],
+          rowH: 0.27,
+          fontFace: fontName, fontSize: 8.5,
+          valign: 'middle',
+          border: { type: 'solid', color: 'F1F5F9', pt: 0.5 }
+        });
+
+        // Revenue Callout Box
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+          x: c1X + 0.16, y: colY + 4.02, w: colW - 0.32, h: 0.78,
+          rectRadius: 0.1,
+          fill: { color: 'F0F7FF' },
+          line: { color: 'BAE6FD', width: 0.75 }
+        });
+        slide.addText(`${insights.revNote1}\n${insights.revNote2}`, {
+          x: c1X + 0.24, y: colY + 4.06, w: colW - 0.48, h: 0.70,
+          fontFace: fontName, fontSize: 8, color: '0369A1', valign: 'middle', margin: 0
+        });
+
+        // ---------------------------------------------------------------------
+        // COLUMN 2 CONTENT: VERTICAL BAR CHART + TABLE + CALLOUT
+        // ---------------------------------------------------------------------
+        const c2X = colXs[1];
+        const chart2X = c2X + 0.52;
+        const chart2Y = colY + 0.65;
+        const chart2W = 3.42;
+        const chart2H = 1.42;
+
+        // Horizontal grid lines (0 to 5000 step 500)
+        for (let g = 0; g <= 10; g++) {
+          const val = g * 500;
+          const gy = chart2Y + chart2H - (g / 10) * chart2H;
+          slide.addShape(pptx.shapes.LINE, {
+            x: chart2X, y: gy, w: chart2W, h: 0,
+            line: { color: g === 0 ? '64748B' : 'CBD5E1', width: 0.6 }
+          });
+          slide.addText(String(val), {
+            x: c2X + 0.10, y: gy - 0.07, w: 0.38, h: 0.14,
+            fontFace: fontName, fontSize: 7, color: '334155', align: 'right', margin: 0
+          });
+        }
+        // Left Y-axis line
+        slide.addShape(pptx.shapes.LINE, {
+          x: chart2X, y: chart2Y, w: 0, h: chart2H,
+          line: { color: '64748B', width: 0.75 }
+        });
+
+        const costBars = [
+          { label: 'Mfg Cost', valK: d.mfgCost / 1000, color: 'A84300' },
+          { label: 'Raw Material', valK: d.totalRawUse / 1000, color: '00897B' },
+          { label: 'Net Profit', valK: d.netProfit / 1000, color: isProfitable ? '008A5E' : 'C62828' },
+          { label: 'Admin & Int', valK: d.adminCost / 1000, color: '4F46E5' }
+        ];
+
+        costBars.forEach((b, i) => {
+          const slotW = chart2W / 4;
+          const barW = 0.36;
+          const bx = chart2X + i * slotW + (slotW - barW) / 2;
+          const bh = Math.max(0.04, Math.min(chart2H, (Math.abs(b.valK) / 5000) * chart2H));
+          const by = chart2Y + chart2H - bh;
+
+          slide.addShape(pptx.shapes.RECTANGLE, {
+            x: bx, y: by, w: barW, h: bh,
+            fill: { color: b.color },
+            line: { color: b.color, width: 0 }
+          });
+
+          slide.addText(b.valK.toFixed(2), {
+            x: bx - 0.18, y: by - 0.17, w: barW + 0.36, h: 0.16,
+            fontFace: fontName, fontSize: 7.5, bold: true, color: '0F172A', align: 'center', margin: 0
+          });
+
+          slide.addText(b.label, {
+            x: bx - 0.22, y: chart2Y + chart2H + 0.03, w: barW + 0.44, h: 0.16,
+            fontFace: fontName, fontSize: 7.8, color: '0F172A', align: 'center', margin: 0
+          });
+        });
+
+        // Cost Table
+        const costTableRows = [
+          [
+            { text: 'Manufacturing Cost', options: { bold: true, color: '0F172A', fill: 'FFFFFF' } },
+            { text: fmtCurrency(d.mfgCost), options: { bold: true, color: '0F172A', align: 'right', fill: 'FFFFFF' } },
+            { text: `${d.mfgPct.toFixed(2)}%`, options: { bold: true, color: '0F172A', align: 'right', fill: 'FFFFFF' } }
+          ],
+          [
+            { text: 'Raw Material Used', options: { color: '1E293B', fill: 'F8FAFC' } },
+            { text: fmtCurrency(d.totalRawUse), options: { color: '1E293B', align: 'right', fill: 'F8FAFC' } },
+            { text: `${d.rmRevPct.toFixed(2)}%`, options: { color: '1E293B', align: 'right', fill: 'F8FAFC' } }
+          ],
+          [
+            { text: 'Admin Cost + Int Exp', options: { color: '1E293B', fill: 'FFFFFF' } },
+            { text: fmtCurrency(d.adminCost), options: { color: '1E293B', align: 'right', fill: 'FFFFFF' } },
+            { text: `${d.adminPct.toFixed(2)}%`, options: { color: '1E293B', align: 'right', fill: 'FFFFFF' } }
+          ],
+          [
+            { text: 'Net Profit', options: { bold: true, color: '007A4D', fill: 'E8F8F0' } },
+            { text: fmtCurrency(d.netProfit), options: { bold: true, color: '007A4D', align: 'right', fill: 'E8F8F0' } },
+            { text: `${d.profitPct.toFixed(2)}%`, options: { bold: true, color: '007A4D', align: 'right', fill: 'E8F8F0' } }
+          ],
+          [
+            { text: 'Total Sales Allocation', options: { bold: true, color: '0F172A', fill: 'F8FAFC' } },
+            { text: fmtCurrency(d.sale), options: { bold: true, color: '0F172A', align: 'right', fill: 'F8FAFC' } },
+            { text: '100.0%', options: { bold: true, color: '0F172A', align: 'right', fill: 'F8FAFC' } }
+          ]
+        ];
+
+        slide.addTable(costTableRows, {
+          x: c2X + 0.16, y: colY + 2.40, w: colW - 0.32,
+          colW: [1.85, 1.35, 0.66],
+          rowH: 0.27,
+          fontFace: fontName, fontSize: 8.5,
+          valign: 'middle',
+          border: { type: 'solid', color: 'F1F5F9', pt: 0.5 }
+        });
+
+        // Cost Callout Box
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+          x: c2X + 0.16, y: colY + 4.02, w: colW - 0.32, h: 0.78,
+          rectRadius: 0.1,
+          fill: { color: 'FFFBEB' },
+          line: { color: 'FDE68A', width: 0.75 }
+        });
+        slide.addText(`${insights.costNote1}\n${insights.costNote2}`, {
+          x: c2X + 0.24, y: colY + 4.06, w: colW - 0.48, h: 0.70,
+          fontFace: fontName, fontSize: 8, color: '92400E', valign: 'middle', margin: 0
+        });
+
+        // ---------------------------------------------------------------------
+        // COLUMN 3 CONTENT: INVENTORY MOVEMENT, WORKFORCE & TAKEAWAYS
+        // ---------------------------------------------------------------------
+        const c3X = colXs[2];
+        const wipDelta = d.wipEnd - d.wipBegin;
+        const wipActionText = wipDelta >= 0
+          ? `WIP Build-up +${fmtShortK(wipDelta, 1)}`
+          : `WIP Released -${fmtShortK(Math.abs(wipDelta), 1)}`;
+
+        const fgDelta = d.fgBegin - d.fgEnd;
+        const fgActionText = fgDelta >= 0
+          ? `Inventory Released +${fmtShortK(fgDelta, 1)}`
+          : `FG Stock Build-up -${fmtShortK(Math.abs(fgDelta), 1)}`;
+
+        // Sub-card 1: Inventory Movement
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+          x: c3X + 0.16, y: colY + 0.60, w: colW - 0.32, h: 1.92,
+          rectRadius: 0.1,
+          fill: { color: 'F8FAFC' },
+          line: { color: 'E2E8F0', width: 0.75 }
+        });
+
+        slide.addText([
+          { text: 'INVENTORY MOVEMENT (3 Categories)\n', options: { fontSize: 8.8, bold: true, color: '00695C' } },
+          { text: `1. Raw Material (RM)\n   Begin ${fmtShortK(d.rmBegin, 0)} + Buy ${fmtShortK(d.rmPurchase, 0)} - End ${fmtShortK(d.rmEnd, 0)} = Used ${fmtShortK(d.rmUse, 1)}\n`, options: { fontSize: 8, bold: true, color: '0F172A' } },
+          { text: `2. Work in Process (WIP)\n   Begin ${fmtShortK(d.wipBegin, 0)} -> End ${fmtShortK(d.wipEnd, 0)} = ${wipActionText}\n`, options: { fontSize: 8, bold: true, color: 'B44C00' } },
+          { text: `3. Finished Goods (FG)\n   Begin ${fmtShortK(d.fgBegin, 0)} -> End ${fmtShortK(d.fgEnd, 0)} = ${fgActionText}\n`, options: { fontSize: 8, bold: true, color: '2E7D32' } },
+          { text: `>> Total Raw Mat Used: ${fmtCurrency(d.totalRawUse)} (${d.rawMatUsePct.toFixed(2)}% of Core Sales)`, options: { fontSize: 8.2, bold: true, color: '0F62FE' } }
+        ], {
+          x: c3X + 0.26, y: colY + 0.65, w: colW - 0.52, h: 1.82,
+          fontFace: fontName, valign: 'top', lineSpacingMultiple: 1.12, margin: 0
+        });
+
+        // Sub-card 2: Workforce & Productivity
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+          x: c3X + 0.16, y: colY + 2.60, w: colW - 0.32, h: 0.96,
+          rectRadius: 0.1,
+          fill: { color: 'EEF2FF' },
+          line: { color: 'C7D2FE', width: 0.75 }
+        });
+
+        slide.addText([
+          { text: 'WORKFORCE & PRODUCTIVITY\n', options: { fontSize: 8.8, bold: true, color: '3730A3' } },
+          { text: `* Total Workforce: ${d.totalHeadcount} (Permanent: ${d.manpower} [${d.permPct}%] | Sub-contract: ${d.subcontract} [${d.subPct}%])\n`, options: { fontSize: 8, bold: true, color: '1E293B' } },
+          { text: `* Revenue per Employee: ${fmtCurrency(d.revPerEmp, 0)} / Person\n`, options: { fontSize: 8, bold: true, color: '1E293B' } },
+          { text: `* Net Profit per Employee: ${fmtCurrency(d.profitPerEmp, 0)} / Person`, options: { fontSize: 8, bold: true, color: '1E293B' } }
+        ], {
+          x: c3X + 0.26, y: colY + 2.65, w: colW - 0.52, h: 0.86,
+          fontFace: fontName, valign: 'top', lineSpacingMultiple: 1.15, margin: 0
+        });
+
+        // Sub-card 3: Executive Takeaways
+        slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+          x: c3X + 0.16, y: colY + 3.64, w: colW - 0.32, h: 1.18,
+          rectRadius: 0.1,
+          fill: { color: 'F8FAFC' },
+          line: { color: 'E2E8F0', width: 0.75 }
+        });
+
+        slide.addText([
+          { text: 'EXECUTIVE TAKEAWAYS & ACTIONABLE INSIGHTS\n', options: { fontSize: 8.5, bold: true, color: '1E293B' } },
+          { text: `${insights.line1}\n${insights.line2}\n${insights.line3}`, options: { fontSize: 7.6, bold: true, color: '6D4C41' } }
+        ], {
+          x: c3X + 0.26, y: colY + 3.68, w: colW - 0.52, h: 1.10,
+          fontFace: fontName, valign: 'top', lineSpacingMultiple: 1.12, margin: 0
+        });
+
+        // ---------------------------------------------------------------------
+        // 4. BOTTOM FOOTER
+        // ---------------------------------------------------------------------
+        slide.addText(
+          `Remarks: 1. % Cost/Sale (${Number(d.costSalePct).toFixed(2)}%) excludes Operation Charge  |  2. % Raw Mat Use (${d.rawMatUsePct.toFixed(2)}%) = Total Raw Mat Use / (SM + MA Sales)  |  Source: ${d.filename}  |  Designed with Care by Ant for P'Ton`,
+          {
+            x: 0.25, y: 7.22, w: 12.8, h: 0.22,
+            fontFace: fontName, fontSize: 7.8, color: '64748B', margin: 0
+          }
+        );
+
+        const cleanPeriod = (d.shortPeriod || 'Report').replace(/[^a-zA-Z0-9_-]/g, '');
+        const outName = `Executive_PnL_Dashboard_${cleanPeriod}.pptx`;
+        await pptx.writeFile({ fileName: outName });
+        showToast(`ดาวน์โหลดไฟล์ PowerPoint "${outName}" สำเร็จ! (ไม่มีปัญหาเรื่อง Font แน่นอนค่ะ)`, "success");
+      } catch (err) {
+        console.error(err);
+        showToast("เกิดข้อผิดพลาดในการสร้างไฟล์ PowerPoint", "error");
+      } finally {
+        btn.innerHTML = origHtml;
+        btn.disabled = false;
+      }
+    }
+
+    // =========================================================================
+    // 7. GEMINI AI SMART INSIGHTS GENERATOR (Optional AI Enhancement)
+    // =========================================================================
+    async function generateAiInsights() {
+      const btn = document.getElementById('btnAiAnalyze');
+      const origHtml = btn.innerHTML;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>กำลังวิเคราะห์...</span>`;
+      btn.disabled = true;
+
+      const d = appData;
+      const apiKey = "";
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+      const prompt = `Analyze this manufacturing monthly P&L statement (${d.period}) and write 3 concise executive takeaways in English matching this exact style:
+- Sale: ${d.sale}, Sheet Metal: ${d.sheetMetal}, Machine Parts: ${d.machineParts}, Op Charge: ${d.operationCharge}
+- Raw Mat Begin: ${d.rmBegin}, Purchase: ${d.rmPurchase}, End: ${d.rmEnd}, Use: ${d.rmUse}
+- WIP Begin: ${d.wipBegin}, End: ${d.wipEnd}, Use: ${d.wipUse}
+- FG Begin: ${d.fgBegin}, End: ${d.fgEnd}, Use: ${d.fgUse}
+- Total Raw Mat Use: ${d.totalRawUse} (${d.rawMatUsePct.toFixed(2)}%)
+- Manufacturing Cost: ${d.mfgCost} (${d.mfgPct.toFixed(1)}%), Admin Cost: ${d.adminCost}, Net Profit: ${d.netProfit} (${d.profitPct.toFixed(2)}%)
+Return JSON with keys: line1 (1. FG Stock...), line2 (2. Production/WIP...), line3 (3. Profit Optimization...). Keep each under 130 characters.`;
+
+      const payload = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              line1: { type: "STRING" },
+              line2: { type: "STRING" },
+              line3: { type: "STRING" }
+            },
+            required: ["line1", "line2", "line3"]
+          }
+        }
+      };
+
+      try {
+        let response;
+        let delay = 1000;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (response.ok) break;
+          await new Promise(r => setTimeout(r, delay));
+          delay *= 2;
+        }
+
+        const result = await response.json();
+        const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (jsonText) {
+          const parsed = JSON.parse(jsonText);
+          insights.line1 = parsed.line1 || insights.line1;
+          insights.line2 = parsed.line2 || insights.line2;
+          insights.line3 = parsed.line3 || insights.line3;
+          document.getElementById('inputInsight1').value = insights.line1;
+          document.getElementById('inputInsight2').value = insights.line2;
+          document.getElementById('inputInsight3').value = insights.line3;
+          renderSlidePreview();
+          showToast("AI วิเคราะห์ข้อมูลเชิงลึกตามตัวเลขจริงเรียบร้อยแล้วค่ะ!", "success");
+        }
+      } catch (e) {
+        recalculateDerivedMetrics(true);
+        renderSlidePreview();
+        showToast("อัปเดตบทวิเคราะห์ตามสูตรมาตรฐานเรียบร้อยค่ะ", "success");
+      } finally {
+        btn.innerHTML = origHtml;
+        btn.disabled = false;
+      }
+    }
+
+    // =========================================================================
+    // 8. DOWNLOAD EXCEL TEMPLATE (.XLSX)
+    // =========================================================================
+    function downloadExcelTemplate() {
+      const d = appData;
+      const wsData = [
+        ["Income and profit (Loss) Statement", ""],
+        ["", d.shortPeriod || "Oct'26"],
+        ["Sale", d.sale],
+        ["Sheet metal parts", d.sheetMetal],
+        ["Machine parts", d.machineParts],
+        ["Total MA+SM", d.totalMaSm],
+        ["Operation charge", d.operationCharge],
+        ["Scap sale", d.scrapSale],
+        ["Other income", d.otherIncome],
+        ["Raw material", ""],
+        ["Beginning", d.rmBegin],
+        ["Purchase", d.rmPurchase],
+        ["Ending", d.rmEnd],
+        ["use", d.rmUse],
+        ["", ""],
+        ["Work in Process", ""],
+        ["Beginning", d.wipBegin],
+        ["Ending", d.wipEnd],
+        ["Use", d.wipUse],
+        ["", ""],
+        ["Finish goods", ""],
+        ["Beginning", d.fgBegin],
+        ["Ending", d.fgEnd],
+        ["Use", d.fgUse],
+        ["", ""],
+        ["Total raw. use", d.totalRawUse],
+        ["Raw mat use %", d.rawMatUsePct / 100],
+        ["Manufac.cost", d.mfgCost],
+        ["Admin cost +IN Ex.", d.adminCost],
+        ["Net profit (loss)", d.netProfit],
+        ["", ""],
+        ["Profit (loss )%", d.profitPct / 100],
+        ["% cost/sale", d.costSalePct],
+        ["Man-power", d.manpower],
+        ["Sub-contract", d.subcontract]
+      ];
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws['!cols'] = [{ wch: 28 }, { wch: 18 }];
+      XLSX.utils.book_append_sheet(wb, ws, "P&L_Statement");
+      XLSX.writeFile(wb, `allocate_cost_template_${d.shortPeriod || 'Oct26'}.xlsx`);
+      showToast("ดาวน์โหลดไฟล์ Excel ต้นแบบเรียบร้อยค่ะ", "success");
+    }
+
+    // =========================================================================
+    // 9. UI HELPERS & INSPECTOR BINDINGS
+    // =========================================================================
+    function loadPresetData(key) {
+      appData = JSON.parse(JSON.stringify(PRESETS[key]));
+      document.getElementById('currentFileNameText').textContent = `${appData.filename} (${appData.period})`;
+
+      const btnOct = document.getElementById('btnLoadOct');
+      const btnNov = document.getElementById('btnLoadNov');
+      if (key === 'oct26') {
+        btnOct.className = "px-3 py-1.5 rounded-md font-semibold bg-blue-600 text-white transition";
+        btnNov.className = "px-3 py-1.5 rounded-md font-semibold text-slate-300 hover:text-white transition";
+      } else {
+        btnNov.className = "px-3 py-1.5 rounded-md font-semibold bg-blue-600 text-white transition";
+        btnOct.className = "px-3 py-1.5 rounded-md font-semibold text-slate-300 hover:text-white transition";
+      }
+
+      populateInspectorFields();
+      recalculateDerivedMetrics(true);
+      renderSlidePreview();
+      showToast(`โหลดชุดข้อมูล ${appData.period} เรียบร้อยค่ะ`, "success");
+    }
+
+    function syncManualEdits() {
+      insights.line1 = document.getElementById('inputInsight1').value;
+      insights.line2 = document.getElementById('inputInsight2').value;
+      insights.line3 = document.getElementById('inputInsight3').value;
+      renderSlidePreview();
+    }
+
+    function toggleInspector() {
+      const panel = document.getElementById('dataInspectorPanel');
+      const icon = document.getElementById('inspectorChevron');
+      panel.classList.toggle('hidden');
+      icon.classList.toggle('rotate-180');
+    }
+
+    function populateInspectorFields() {
+      const d = appData;
+      document.getElementById('f_period').value = d.period;
+      document.getElementById('f_filename').value = d.filename;
+      document.getElementById('f_sale').value = d.sale;
+      document.getElementById('f_sm').value = d.sheetMetal;
+      document.getElementById('f_ma').value = d.machineParts;
+      document.getElementById('f_op').value = d.operationCharge;
+      document.getElementById('f_scrap').value = d.scrapSale;
+      document.getElementById('f_other').value = d.otherIncome;
+      document.getElementById('f_totalRmUse').value = d.totalRawUse;
+      document.getElementById('f_mfgCost').value = d.mfgCost;
+      document.getElementById('f_adminCost').value = d.adminCost;
+      document.getElementById('f_netProfit').value = d.netProfit;
+      document.getElementById('f_costSalePct').value = d.costSalePct;
+      document.getElementById('f_manpower').value = d.manpower;
+      document.getElementById('f_subcontract').value = d.subcontract;
+    }
+
+    function updateFromInspector() {
+      const d = appData;
+      d.period = document.getElementById('f_period').value;
+      d.filename = document.getElementById('f_filename').value;
+      d.sale = parseFloat(document.getElementById('f_sale').value) || 0;
+      d.sheetMetal = parseFloat(document.getElementById('f_sm').value) || 0;
+      d.machineParts = parseFloat(document.getElementById('f_ma').value) || 0;
+      d.operationCharge = parseFloat(document.getElementById('f_op').value) || 0;
+      d.scrapSale = parseFloat(document.getElementById('f_scrap').value) || 0;
+      d.otherIncome = parseFloat(document.getElementById('f_other').value) || 0;
+      d.totalRawUse = parseFloat(document.getElementById('f_totalRmUse').value) || 0;
+      d.mfgCost = parseFloat(document.getElementById('f_mfgCost').value) || 0;
+      d.adminCost = parseFloat(document.getElementById('f_adminCost').value) || 0;
+      d.netProfit = parseFloat(document.getElementById('f_netProfit').value) || 0;
+      d.costSalePct = parseFloat(document.getElementById('f_costSalePct').value) || 0;
+      d.manpower = parseInt(document.getElementById('f_manpower').value) || 0;
+      d.subcontract = parseInt(document.getElementById('f_subcontract').value) || 0;
+
+      recalculateDerivedMetrics(true);
+      renderSlidePreview();
+    }
+
+    function showToast(msg, type = "success") {
+      const box = document.getElementById('toastBox');
+      const icon = document.getElementById('toastIcon');
+      const text = document.getElementById('toastMessage');
+      text.textContent = msg;
+      icon.className = type === "success"
+        ? "fa-solid fa-circle-check text-emerald-400 text-base"
+        : "fa-solid fa-triangle-exclamation text-rose-400 text-base";
+      box.classList.remove('hidden');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => box.classList.add('hidden'), 4000);
+    }
+
+    // Initialize on load
+    window.onload = function() {
+      populateInspectorFields();
+      recalculateDerivedMetrics(true);
+      renderSlidePreview();
+    };
+  </script>
+</body>
+</html>
