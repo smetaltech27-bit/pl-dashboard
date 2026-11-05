@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Executive P&L Excel-to-PowerPoint Generator</title>
+  <title>Executive P&L Excel-to-PowerPoint Generator | S METAL TECH CO.,LTD.</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- SheetJS (xlsx) for reading & writing Excel files -->
@@ -88,14 +88,19 @@
             <h1 class="font-bold text-base md:text-lg tracking-tight text-white">Executive P&L Excel <i class="fa-solid fa-arrow-right text-xs text-blue-400 mx-1"></i> PowerPoint Generator</h1>
             <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold px-2 py-0.5 rounded-full">TrueType Font Safe</span>
           </div>
-          <p class="text-xs text-slate-400">อัปโหลดไฟล์ Excel งบกำไรขาดทุน เพื่อสร้างสไลด์ผู้บริหาร 1 หน้า (.pptx) พร้อมกราฟและบทวิเคราะห์อัตโนมัติ</p>
+          <p class="text-xs text-slate-400">อัปโหลดไฟล์ Excel งบกำไรขาดทุน (รองรับทั้งไฟล์เดือนเดียวและหลายเดือน) เพื่อสร้างสไลด์ผู้บริหาร 1 หน้า (.pptx)</p>
         </div>
       </div>
 
       <!-- Action Buttons -->
       <div class="flex flex-wrap items-center gap-2.5">
-        <!-- Sample Data Switcher -->
-        
+        <!-- Dynamic Period / Month Selector (Appears when multi-month Excel is loaded) -->
+        <div id="periodSelectorWrapper" class="hidden items-center gap-1.5 bg-blue-950/80 border border-blue-500/40 rounded-lg px-2.5 py-1.5 text-xs">
+          <i class="fa-solid fa-calendar-check text-blue-400"></i>
+          <span class="text-blue-200">เลือกเดือน:</span>
+          <select id="headerPeriodSelect" onchange="switchExcelColumn(this.value)" class="bg-transparent text-white font-bold focus:outline-none cursor-pointer"></select>
+        </div>
+
         <!-- Safe Font Selector for PowerPoint -->
         <div class="flex items-center gap-1.5 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs">
           <i class="fa-solid fa-font text-slate-400"></i>
@@ -141,11 +146,17 @@
             <i class="fa-solid fa-cloud-arrow-up text-2xl"></i>
           </div>
           <p class="text-xs font-semibold text-slate-200 mb-1">คลิกเพื่อเลือกไฟล์ Excel หรือลากไฟล์มาวางที่นี่</p>
-          <p class="text-[11px] text-slate-400">ระบบจะอ่านค่า Sale, Raw Mat, WIP, FG, Mfg Cost, Net Profit และวิเคราะห์ให้อัตโนมัติ</p>
+          <p class="text-[11px] text-slate-400">รองรับทั้งไฟล์ 1 เดือน และไฟล์รวมหลายเดือน (ระบบจะดึงเดือนล่าสุดให้อัตโนมัติ)</p>
           <div id="loadedFileBanner" class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-center gap-2 text-xs text-amber-300 font-medium">
             <i class="fa-solid fa-file-excel"></i>
             <span id="currentFileNameText">allocate cost forOct'26.xlsx (Oct'26)</span>
           </div>
+        </div>
+
+        <!-- Multi-Month Column Switcher inside Upload Card -->
+        <div id="sidebarPeriodBox" class="hidden mt-3 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+          <span class="text-slate-300 font-medium"><i class="fa-solid fa-table-columns text-blue-400 mr-1.5"></i>พบข้อมูลหลายเดือนในไฟล์:</span>
+          <select id="sidebarPeriodSelect" onchange="switchExcelColumn(this.value)" class="bg-slate-950 border border-slate-700 text-amber-300 font-bold rounded-lg px-2.5 py-1 focus:outline-none focus:border-blue-500 cursor-pointer"></select>
         </div>
       </div>
 
@@ -158,7 +169,7 @@
           </h2>
           <button id="btnAiAnalyze" onclick="generateAiInsights()" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-2.5 py-1 rounded-md flex items-center gap-1.5 transition shadow">
             <i class="fa-solid fa-wand-magic-sparkles"></i>
-            <span>AI วิเคราะห์ใหม่</span>
+            <span>วิเคราะห์ใหม่</span>
           </button>
         </div>
 
@@ -264,9 +275,9 @@
           <span>ข้อเสนอแนะและจุดเด่นของระบบนี้:</span>
         </div>
         <ul class="space-y-1.5 text-slate-300 list-disc pl-4 leading-relaxed">
-          <li><strong>100% TrueType Font Safe:</strong> ใช้ฟอนต์มาตรฐานตระกูล <code>Arial / Calibri / Segoe UI</code> ทำให้เมื่อเปิดใน PowerPoint จะ<strong>ไม่ขึ้น Error เรื่องฟอนต์ Inter</strong> อีกต่อไป และแก้ไขตัวเลขทุกจุดใน PowerPoint ได้ทันที</li>
-          <li><strong>Dynamic Charts & Smart Insights:</strong> กราฟแท่งทั้ง 2 ฝั่ง สัดส่วน % และบทวิเคราะห์ 3 ข้อด้านขวาล่าง จะคำนวณเปลี่ยนตามตัวเลขในไฟล์ Excel อัตโนมัติทุกเดือน</li>
-          <li><strong>Data Privacy 100%:</strong> การประมวลผลไฟล์ Excel และการสร้างไฟล์ PowerPoint ทำงานบนเครื่องของพี่โดยตรง รวดเร็วและปลอดภัย</li>
+          <li><strong>Auto Latest-Month Detection:</strong> โยนไฟล์ Excel ที่มีหลายเดือนเรียงกันเข้าไปได้เลย ระบบจะดึงคอลัมน์เดือนล่าสุด (ขวาสุด) มาสร้าง Dashboard ให้อัตโนมัติ พร้อมปุ่มสลับดูเดือนย้อนหลัง</li>
+          <li><strong>100% TrueType Font Safe:</strong> ใช้ฟอนต์มาตรฐานตระกูล <code>Arial / Calibri / Segoe UI / Tahoma</code> ทำให้เมื่อเปิดใน PowerPoint จะไม่ขึ้น Error เรื่องฟอนต์ และกด Save ได้ทันที</li>
+          <li><strong>Data Privacy 100%:</strong> ประมวลผลบนเบราว์เซอร์เครื่องของพี่โดยตรง รวดเร็วและปลอดภัย</li>
         </ul>
       </div>
 
@@ -300,74 +311,45 @@
 
   <script>
     // =========================================================================
-    // 1. STATE & PRESET DATA (Exact Oct'26 Data from User's Excel + Nov'26 Demo)
+    // 1. STATE & INITIAL DATA (Oct'26 Default)
     // =========================================================================
-    const PRESETS = {
-      oct26: {
-        period: "October 2026 (Oct'26)",
-        shortPeriod: "Oct'26",
-        filename: "allocate cost forOct'26.xlsx",
-        sale: 8267330.10,
-        sheetMetal: 4902511.20,
-        machineParts: 2612659.60,
-        totalMaSm: 7515170.80,
-        operationCharge: 604375.20,
-        scrapSale: 97784.10,
-        otherIncome: 50000.00,
-        rmBegin: 514861.08,
-        rmPurchase: 2263554.90,
-        rmEnd: 521356.18,
-        rmUse: 2257059.80,
-        wipBegin: 1047001.65,
-        wipEnd: 1505270.54,
-        wipUse: -458268.89,
-        fgBegin: 3964010.84,
-        fgEnd: 3254176.19,
-        fgUse: 709834.65,
-        totalRawUse: 2508625.56,
-        rawMatUsePct: 33.38,
-        mfgCost: 4742452.92,
-        adminCost: 497065.11,
-        netProfit: 519186.51,
-        profitPct: 6.28,
-        costSalePct: 93.84,
-        manpower: 72,
-        subcontract: 6
-      },
-      nov26: {
-        period: "November 2026 (Nov'26)",
-        shortPeriod: "Nov'26",
-        filename: "allocate cost forNov'26.xlsx",
-        sale: 9145200.00,
-        sheetMetal: 5320100.00,
-        machineParts: 2985000.00,
-        totalMaSm: 8305100.00,
-        operationCharge: 680100.00,
-        scrapSale: 110000.00,
-        otherIncome: 50000.00,
-        rmBegin: 521356.18,
-        rmPurchase: 2690000.00,
-        rmEnd: 495000.00,
-        rmUse: 2716356.18,
-        wipBegin: 1505270.54,
-        wipEnd: 1190270.54,
-        wipUse: 315000.00,
-        fgBegin: 3254176.19,
-        fgEnd: 3589176.19,
-        fgUse: -335000.00,
-        totalRawUse: 2696356.18,
-        rawMatUsePct: 32.47,
-        mfgCost: 4920500.00,
-        adminCost: 512000.00,
-        netProfit: 1016343.82,
-        profitPct: 11.11,
-        costSalePct: 88.89,
-        manpower: 72,
-        subcontract: 8
-      }
+    const DEFAULT_OCT26 = {
+      period: "October 2026 (Oct'26)",
+      shortPeriod: "Oct'26",
+      filename: "allocate cost forOct'26.xlsx",
+      sale: 8267330.10,
+      sheetMetal: 4902511.20,
+      machineParts: 2612659.60,
+      totalMaSm: 7515170.80,
+      operationCharge: 604375.20,
+      scrapSale: 97784.10,
+      otherIncome: 50000.00,
+      rmBegin: 514861.08,
+      rmPurchase: 2263554.90,
+      rmEnd: 521356.18,
+      rmUse: 2257059.80,
+      wipBegin: 1047001.65,
+      wipEnd: 1505270.54,
+      wipUse: -458268.89,
+      fgBegin: 3964010.84,
+      fgEnd: 3254176.19,
+      fgUse: 709834.65,
+      totalRawUse: 2508625.56,
+      rawMatUsePct: 33.38,
+      mfgCost: 4742452.92,
+      adminCost: 497065.11,
+      netProfit: 519186.51,
+      profitPct: 6.28,
+      costSalePct: 93.84,
+      manpower: 72,
+      subcontract: 6
     };
 
-    let appData = JSON.parse(JSON.stringify(PRESETS.oct26));
+    let appData = JSON.parse(JSON.stringify(DEFAULT_OCT26));
+    let cachedExcelRows = null;
+    let cachedFilename = "";
+    let availableColumns = []; // [{ colIndex, shortPeriod, fullPeriod }]
+
     let insights = {
       line1: "",
       line2: "",
@@ -385,14 +367,6 @@
       const num = Number(val) || 0;
       const sign = num < 0 ? "-" : "";
       return sign + "฿" + Math.abs(num).toLocaleString('en-US', {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals
-      });
-    }
-
-    function fmtNum(val, decimals = 2) {
-      const num = Number(val) || 0;
-      return num.toLocaleString('en-US', {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals
       });
@@ -495,7 +469,7 @@
     }
 
     // =========================================================================
-    // 4. RENDER EXACT 16:9 LIVE SLIDE PREVIEW (Matching Reference Image 100%)
+    // 4. RENDER EXACT 16:9 LIVE SLIDE PREVIEW
     // =========================================================================
     function renderSlidePreview() {
       const d = appData;
@@ -889,7 +863,7 @@
     window.addEventListener('resize', scalePreviewToFit);
 
     // =========================================================================
-    // 5. SMART EXCEL PARSER (SheetJS)
+    // 5. SMART MULTI-COLUMN EXCEL PARSER (Supports Single & Multi-Month Files)
     // =========================================================================
     function handleFileSelect(evt) {
       const file = evt.target.files?.[0];
@@ -914,10 +888,18 @@
 
     function parseNumCell(val) {
       if (typeof val === 'number') return val;
-      if (!val) return 0;
-      const cleaned = String(val).replace(/,/g, '').replace(/%/g, '').replace(/฿/g, '').trim();
+      if (val === null || val === undefined) return 0;
+      const str = String(val).trim();
+      if (!str || str.toLowerCase() === 'none' || str === '-') return 0;
+      // Handle accounting format like "-  458,268.89" or "(458,268.89)"
+      let isNegative = false;
+      if (str.startsWith('(') && str.endsWith(')')) {
+        isNegative = true;
+      }
+      const cleaned = str.replace(/[,%฿()\s]/g, '');
       const parsed = parseFloat(cleaned);
-      return isNaN(parsed) ? 0 : parsed;
+      if (isNaN(parsed)) return 0;
+      return isNegative ? -Math.abs(parsed) : parsed;
     }
 
     function parseExcelFile(file) {
@@ -930,8 +912,10 @@
           const worksheet = workbook.Sheets[firstSheetName];
           const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
 
-          extractMetricsFromRows(rows, file.name);
-          showToast(`อ่านข้อมูลจากไฟล์ "${file.name}" สำเร็จ!`, "success");
+          cachedExcelRows = rows;
+          cachedFilename = file.name;
+
+          detectColumnsAndExtractLatest(rows, file.name);
         } catch (err) {
           console.error(err);
           showToast("ไม่สามารถอ่านไฟล์ Excel ได้ กรุณาตรวจสอบรูปแบบไฟล์", "error");
@@ -940,11 +924,145 @@
       reader.readAsArrayBuffer(file);
     }
 
-    function extractMetricsFromRows(rows, filename) {
+    function detectColumnsAndExtractLatest(rows, filename) {
+      availableColumns = [];
+
+      // Find the "Sale" row to know which columns actually contain financial numbers
+      let saleRow = null;
+      let periodHeaderRow = null;
+
+      for (let i = 0; i < Math.min(rows.length, 15); i++) {
+        const r = rows[i];
+        if (!r || r.length === 0) continue;
+        const firstCell = String(r[0] || "").trim().toLowerCase();
+
+        if (firstCell === "sale" || firstCell === "sales" || firstCell === "total sale") {
+          saleRow = r;
+          // Often the row right above "Sale" contains the month headers (July'26, Aug'26, Sep'26, Oct'26)
+          if (i > 0) periodHeaderRow = rows[i - 1];
+          break;
+        }
+      }
+
+      // Fallback: scan first 5 rows for month-like headers if periodHeaderRow not found
+      if (!periodHeaderRow) {
+        for (let i = 0; i < Math.min(rows.length, 6); i++) {
+          const r = rows[i];
+          if (!r) continue;
+          const firstCell = String(r[0] || "").trim();
+          if (!firstCell && r.some((cell, idx) => idx > 0 && String(cell).trim().length > 0)) {
+            periodHeaderRow = r;
+            break;
+          }
+        }
+      }
+
+      const maxCols = Math.max(
+        periodHeaderRow ? periodHeaderRow.length : 0,
+        saleRow ? saleRow.length : 0
+      );
+
+      for (let c = 1; c < maxCols; c++) {
+        const rawHeader = periodHeaderRow ? String(periodHeaderRow[c] || "").trim() : "";
+        const saleVal = saleRow ? parseNumCell(saleRow[c]) : 0;
+
+        // A valid data column either has a period header or non-zero Sale value
+        if (rawHeader || saleVal !== 0) {
+          const shortP = rawHeader || `Col ${c}`;
+          availableColumns.push({
+            colIndex: c,
+            shortPeriod: shortP,
+            fullPeriod: expandPeriodName(shortP)
+          });
+        }
+      }
+
+      // If no columns detected via Sale row, default to column 1
+      if (availableColumns.length === 0) {
+        availableColumns.push({
+          colIndex: 1,
+          shortPeriod: "Latest",
+          fullPeriod: "Latest Period"
+        });
+      }
+
+      // Populate period selector dropdowns if multiple columns exist (or always show for clarity)
+      const headerSelect = document.getElementById('headerPeriodSelect');
+      const sidebarSelect = document.getElementById('sidebarPeriodSelect');
+      const headerWrapper = document.getElementById('periodSelectorWrapper');
+      const sidebarBox = document.getElementById('sidebarPeriodBox');
+
+      const optionsHtml = availableColumns.map(col =>
+        `<option value="${col.colIndex}" class="bg-slate-900 text-white">${col.shortPeriod} (${col.fullPeriod.split(' (')[0]})</option>`
+      ).join('');
+
+      headerSelect.innerHTML = optionsHtml;
+      sidebarSelect.innerHTML = optionsHtml;
+
+      // Select the LAST (rightmost / latest month) column automatically
+      const latestCol = availableColumns[availableColumns.length - 1];
+      headerSelect.value = String(latestCol.colIndex);
+      sidebarSelect.value = String(latestCol.colIndex);
+
+      if (availableColumns.length > 1) {
+        headerWrapper.classList.remove('hidden');
+        headerWrapper.classList.add('flex');
+        sidebarBox.classList.remove('hidden');
+      } else {
+        headerWrapper.classList.add('hidden');
+        headerWrapper.classList.remove('flex');
+        sidebarBox.classList.add('hidden');
+      }
+
+      extractMetricsForColumn(rows, filename, latestCol.colIndex, latestCol.shortPeriod, latestCol.fullPeriod);
+      showToast(`ดึงข้อมูลเดือนล่าสุด (${latestCol.shortPeriod}) จาก "${filename}" สำเร็จ!`, "success");
+    }
+
+    function switchExcelColumn(colIndexStr) {
+      if (!cachedExcelRows) return;
+      const colIdx = parseInt(colIndexStr, 10);
+      const colInfo = availableColumns.find(c => c.colIndex === colIdx);
+      if (!colInfo) return;
+
+      document.getElementById('headerPeriodSelect').value = String(colIdx);
+      document.getElementById('sidebarPeriodSelect').value = String(colIdx);
+
+      extractMetricsForColumn(cachedExcelRows, cachedFilename, colInfo.colIndex, colInfo.shortPeriod, colInfo.fullPeriod);
+      showToast(`สลับแสดงข้อมูลเดือน ${colInfo.shortPeriod} เรียบร้อยค่ะ`, "success");
+    }
+
+    function extractMetricsForColumn(rows, filename, targetColIdx, shortPeriod, fullPeriod) {
       let currentSection = "";
       const extracted = {
         filename: filename,
-        period: "October 2026 (Oct'26)"
+        shortPeriod: shortPeriod || "Report",
+        period: fullPeriod || "Monthly Report",
+        sale: 0,
+        sheetMetal: 0,
+        machineParts: 0,
+        totalMaSm: 0,
+        operationCharge: 0,
+        scrapSale: 0,
+        otherIncome: 0,
+        rmBegin: 0,
+        rmPurchase: 0,
+        rmEnd: 0,
+        rmUse: 0,
+        wipBegin: 0,
+        wipEnd: 0,
+        wipUse: 0,
+        fgBegin: 0,
+        fgEnd: 0,
+        fgUse: 0,
+        totalRawUse: 0,
+        rawMatUsePct: 0,
+        mfgCost: 0,
+        adminCost: 0,
+        netProfit: 0,
+        profitPct: 0,
+        costSalePct: 0,
+        manpower: 0,
+        subcontract: 0
       };
 
       for (let i = 0; i < rows.length; i++) {
@@ -953,20 +1071,7 @@
 
         const labelRaw = String(row[0] || "").trim();
         const label = labelRaw.toLowerCase();
-
-        // Find first non-empty value cell in the row (usually index 1 or 2)
-        let valCell = row[1];
-        if ((valCell === "" || valCell === null || valCell === undefined) && row.length > 2) {
-          valCell = row[2];
-        }
-
-        // Check if header row has period like Oct'26, Nov'26
-        if (!label && valCell && String(valCell).length <= 15) {
-          const pStr = String(valCell).trim();
-          extracted.shortPeriod = pStr;
-          extracted.period = expandPeriodName(pStr);
-          continue;
-        }
+        if (!label) continue;
 
         // Track Section Headers (Raw material, Work in Process, Finish goods)
         if (label.includes("raw material")) {
@@ -980,6 +1085,7 @@
           continue;
         }
 
+        const valCell = row[targetColIdx];
         const numVal = parseNumCell(valCell);
 
         // Match specific items
@@ -1033,13 +1139,7 @@
         }
       }
 
-      // Merge extracted fields into appData
-      Object.keys(extracted).forEach(k => {
-        if (extracted[k] !== undefined && extracted[k] !== null && extracted[k] !== "") {
-          appData[k] = extracted[k];
-        }
-      });
-
+      appData = extracted;
       document.getElementById('currentFileNameText').textContent = `${appData.filename} (${appData.period})`;
       populateInspectorFields();
       recalculateDerivedMetrics(true);
@@ -1049,10 +1149,10 @@
     function expandPeriodName(shortStr) {
       const monthMap = {
         jan: "January", feb: "February", mar: "March", apr: "April",
-        may: "May", jun: "June", jul: "July", aug: "August",
-        sep: "September", oct: "October", nov: "November", dec: "December"
+        may: "May", jun: "June", jul: "July", july: "July", aug: "August",
+        sep: "September", sept: "September", oct: "October", nov: "November", dec: "December"
       };
-      const m = shortStr.match(/([A-Za-z]{3})['’\- ]?(\d{2,4})/);
+      const m = String(shortStr).trim().match(/([A-Za-z]{3,4})['’\- ]?(\d{2,4})/);
       if (m) {
         const mKey = m[1].toLowerCase();
         const yr = m[2].length === 2 ? "20" + m[2] : m[2];
@@ -1075,7 +1175,8 @@
       try {
         const pptx = new PptxGenJS();
         pptx.layout = 'LAYOUT_WIDE'; // 13.333 x 7.5 inches
-        pptx.author = 'Executive P&L Generator';
+        pptx.author = 'S METAL TECH CO.,LTD.';
+        pptx.company = 'S METAL TECH CO.,LTD.';
         pptx.title = `Income & Profit (Loss) Statement Dashboard - ${appData.period}`;
 
         const fontName = document.getElementById('pptFontSelect')?.value || 'Arial';
@@ -1301,7 +1402,7 @@
 
         revBars.forEach((b, i) => {
           const by = chart1Y + 0.10 + i * 0.35;
-          const bw = Math.max(0.05, Math.min(chart1W, (b.valK / 6000) * chart1W));
+          const bw = Math.max(0.04, Math.min(chart1W, (b.valK / 6000) * chart1W));
 
           slide.addText(b.label, {
             x: c1X + 0.12, y: by - 0.02, w: 0.76, h: 0.22,
@@ -1547,10 +1648,10 @@
         });
 
         // ---------------------------------------------------------------------
-        // 4. BOTTOM FOOTER
+        // 4. BOTTOM FOOTER (Updated to S METAL TECH CO.,LTD.)
         // ---------------------------------------------------------------------
         slide.addText(
-          `Remarks: 1. % Cost/Sale (${Number(d.costSalePct).toFixed(2)}%) excludes Operation Charge  |  2. % Raw Mat Use (${d.rawMatUsePct.toFixed(2)}%) = Total Raw Mat Use / (SM + MA Sales)  |  Source: ${d.filename}  |  Designed with Care by Ant for P'Ton`,
+          `Remarks: 1. % Cost/Sale (${Number(d.costSalePct).toFixed(2)}%) excludes Operation Charge  |  2. % Raw Mat Use (${d.rawMatUsePct.toFixed(2)}%) = Total Raw Mat Use / (SM + MA Sales)  |  Source: ${d.filename}  |  S METAL TECH CO.,LTD.`,
           {
             x: 0.25, y: 7.22, w: 12.8, h: 0.22,
             fontFace: fontName, fontSize: 7.8, color: '64748B', margin: 0
@@ -1560,7 +1661,7 @@
         const cleanPeriod = (d.shortPeriod || 'Report').replace(/[^a-zA-Z0-9_-]/g, '');
         const outName = `Executive_PnL_Dashboard_${cleanPeriod}.pptx`;
         await pptx.writeFile({ fileName: outName });
-        showToast(`ดาวน์โหลดไฟล์ PowerPoint "${outName}" สำเร็จ! (ไม่มีปัญหาเรื่อง Font แน่นอนค่ะ)`, "success");
+        showToast(`ดาวน์โหลดไฟล์ PowerPoint "${outName}" สำเร็จ!`, "success");
       } catch (err) {
         console.error(err);
         showToast("เกิดข้อผิดพลาดในการสร้างไฟล์ PowerPoint", "error");
@@ -1571,152 +1672,12 @@
     }
 
     // =========================================================================
-    // 7. GEMINI AI SMART INSIGHTS GENERATOR (Optional AI Enhancement)
+    // 7. INSIGHTS REFRESH & UI HELPERS
     // =========================================================================
-    async function generateAiInsights() {
-      const btn = document.getElementById('btnAiAnalyze');
-      const origHtml = btn.innerHTML;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>กำลังวิเคราะห์...</span>`;
-      btn.disabled = true;
-
-      const d = appData;
-      const apiKey = "";
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-
-      const prompt = `Analyze this manufacturing monthly P&L statement (${d.period}) and write 3 concise executive takeaways in English matching this exact style:
-- Sale: ${d.sale}, Sheet Metal: ${d.sheetMetal}, Machine Parts: ${d.machineParts}, Op Charge: ${d.operationCharge}
-- Raw Mat Begin: ${d.rmBegin}, Purchase: ${d.rmPurchase}, End: ${d.rmEnd}, Use: ${d.rmUse}
-- WIP Begin: ${d.wipBegin}, End: ${d.wipEnd}, Use: ${d.wipUse}
-- FG Begin: ${d.fgBegin}, End: ${d.fgEnd}, Use: ${d.fgUse}
-- Total Raw Mat Use: ${d.totalRawUse} (${d.rawMatUsePct.toFixed(2)}%)
-- Manufacturing Cost: ${d.mfgCost} (${d.mfgPct.toFixed(1)}%), Admin Cost: ${d.adminCost}, Net Profit: ${d.netProfit} (${d.profitPct.toFixed(2)}%)
-Return JSON with keys: line1 (1. FG Stock...), line2 (2. Production/WIP...), line3 (3. Profit Optimization...). Keep each under 130 characters.`;
-
-      const payload = {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              line1: { type: "STRING" },
-              line2: { type: "STRING" },
-              line3: { type: "STRING" }
-            },
-            required: ["line1", "line2", "line3"]
-          }
-        }
-      };
-
-      try {
-        let response;
-        let delay = 1000;
-        for (let attempt = 0; attempt < 3; attempt++) {
-          response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          if (response.ok) break;
-          await new Promise(r => setTimeout(r, delay));
-          delay *= 2;
-        }
-
-        const result = await response.json();
-        const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (jsonText) {
-          const parsed = JSON.parse(jsonText);
-          insights.line1 = parsed.line1 || insights.line1;
-          insights.line2 = parsed.line2 || insights.line2;
-          insights.line3 = parsed.line3 || insights.line3;
-          document.getElementById('inputInsight1').value = insights.line1;
-          document.getElementById('inputInsight2').value = insights.line2;
-          document.getElementById('inputInsight3').value = insights.line3;
-          renderSlidePreview();
-          showToast("AI วิเคราะห์ข้อมูลเชิงลึกตามตัวเลขจริงเรียบร้อยแล้วค่ะ!", "success");
-        }
-      } catch (e) {
-        recalculateDerivedMetrics(true);
-        renderSlidePreview();
-        showToast("อัปเดตบทวิเคราะห์ตามสูตรมาตรฐานเรียบร้อยค่ะ", "success");
-      } finally {
-        btn.innerHTML = origHtml;
-        btn.disabled = false;
-      }
-    }
-
-    // =========================================================================
-    // 8. DOWNLOAD EXCEL TEMPLATE (.XLSX)
-    // =========================================================================
-    function downloadExcelTemplate() {
-      const d = appData;
-      const wsData = [
-        ["Income and profit (Loss) Statement", ""],
-        ["", d.shortPeriod || "Oct'26"],
-        ["Sale", d.sale],
-        ["Sheet metal parts", d.sheetMetal],
-        ["Machine parts", d.machineParts],
-        ["Total MA+SM", d.totalMaSm],
-        ["Operation charge", d.operationCharge],
-        ["Scap sale", d.scrapSale],
-        ["Other income", d.otherIncome],
-        ["Raw material", ""],
-        ["Beginning", d.rmBegin],
-        ["Purchase", d.rmPurchase],
-        ["Ending", d.rmEnd],
-        ["use", d.rmUse],
-        ["", ""],
-        ["Work in Process", ""],
-        ["Beginning", d.wipBegin],
-        ["Ending", d.wipEnd],
-        ["Use", d.wipUse],
-        ["", ""],
-        ["Finish goods", ""],
-        ["Beginning", d.fgBegin],
-        ["Ending", d.fgEnd],
-        ["Use", d.fgUse],
-        ["", ""],
-        ["Total raw. use", d.totalRawUse],
-        ["Raw mat use %", d.rawMatUsePct / 100],
-        ["Manufac.cost", d.mfgCost],
-        ["Admin cost +IN Ex.", d.adminCost],
-        ["Net profit (loss)", d.netProfit],
-        ["", ""],
-        ["Profit (loss )%", d.profitPct / 100],
-        ["% cost/sale", d.costSalePct],
-        ["Man-power", d.manpower],
-        ["Sub-contract", d.subcontract]
-      ];
-
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      ws['!cols'] = [{ wch: 28 }, { wch: 18 }];
-      XLSX.utils.book_append_sheet(wb, ws, "P&L_Statement");
-      XLSX.writeFile(wb, `allocate_cost_template_${d.shortPeriod || 'Oct26'}.xlsx`);
-      showToast("ดาวน์โหลดไฟล์ Excel ต้นแบบเรียบร้อยค่ะ", "success");
-    }
-
-    // =========================================================================
-    // 9. UI HELPERS & INSPECTOR BINDINGS
-    // =========================================================================
-    function loadPresetData(key) {
-      appData = JSON.parse(JSON.stringify(PRESETS[key]));
-      document.getElementById('currentFileNameText').textContent = `${appData.filename} (${appData.period})`;
-
-      const btnOct = document.getElementById('btnLoadOct');
-      const btnNov = document.getElementById('btnLoadNov');
-      if (key === 'oct26') {
-        btnOct.className = "px-3 py-1.5 rounded-md font-semibold bg-blue-600 text-white transition";
-        btnNov.className = "px-3 py-1.5 rounded-md font-semibold text-slate-300 hover:text-white transition";
-      } else {
-        btnNov.className = "px-3 py-1.5 rounded-md font-semibold bg-blue-600 text-white transition";
-        btnOct.className = "px-3 py-1.5 rounded-md font-semibold text-slate-300 hover:text-white transition";
-      }
-
-      populateInspectorFields();
+    function generateAiInsights() {
       recalculateDerivedMetrics(true);
       renderSlidePreview();
-      showToast(`โหลดชุดข้อมูล ${appData.period} เรียบร้อยค่ะ`, "success");
+      showToast("คำนวณและอัปเดตบทวิเคราะห์ตามตัวเลขจริงเรียบร้อยค่ะ!", "success");
     }
 
     function syncManualEdits() {
