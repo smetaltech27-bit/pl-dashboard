@@ -160,7 +160,7 @@
         </div>
       </div>
 
-      <!-- 2. AI & Rule-Based Insights Customization -->
+      <!-- 2. AI & Rule-Based Insights Customization (With Thai Translation Below Each Block) -->
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg">
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-sm font-bold text-white flex items-center gap-2">
@@ -174,21 +174,38 @@
         </div>
 
         <p class="text-[11px] text-slate-400 mb-3">
-          ระบบคำนวณความเคลื่อนไหวสต็อก คอขวดงานระหว่างทำ (WIP) และอัตรากำไรตามตัวเลขจริงทันที (พี่สามารถแก้ไขข้อความด้านล่างเพิ่มเติมได้ก่อนกดดาวน์โหลด PPTX)
+          ระบบคำนวณความเคลื่อนไหวสต็อก คอขวดงานระหว่างทำ (WIP) และอัตรากำไรตามตัวเลขจริงทันที (แสดงคำแปลภาษาไทยด้านล่างเพื่อความเข้าใจ โดยในไฟล์ PPTX จะใช้เฉพาะข้อความภาษาอังกฤษค่ะ)
         </p>
 
-        <div class="space-y-2.5 text-xs">
+        <div class="space-y-3.5 text-xs">
+          <!-- Takeaway #1 -->
           <div>
             <label class="block text-slate-400 font-medium mb-1">Takeaway #1 (Inventory / FG Flow):</label>
             <textarea id="inputInsight1" rows="2" oninput="syncManualEdits()" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-200 focus:border-blue-500 focus:outline-none"></textarea>
+            <div class="mt-1.5 px-2.5 py-1.5 rounded-md bg-slate-950/90 border-l-2 border-emerald-500 text-[11px] text-emerald-300/95 leading-relaxed flex items-start gap-1.5">
+              <i class="fa-solid fa-language mt-0.5 text-emerald-400 shrink-0"></i>
+              <span id="thaiInsight1">คำแปล: -</span>
+            </div>
           </div>
+
+          <!-- Takeaway #2 -->
           <div>
             <label class="block text-slate-400 font-medium mb-1">Takeaway #2 (WIP & Production Line):</label>
             <textarea id="inputInsight2" rows="2" oninput="syncManualEdits()" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-200 focus:border-blue-500 focus:outline-none"></textarea>
+            <div class="mt-1.5 px-2.5 py-1.5 rounded-md bg-slate-950/90 border-l-2 border-amber-500 text-[11px] text-amber-300/95 leading-relaxed flex items-start gap-1.5">
+              <i class="fa-solid fa-language mt-0.5 text-amber-400 shrink-0"></i>
+              <span id="thaiInsight2">คำแปล: -</span>
+            </div>
           </div>
+
+          <!-- Takeaway #3 -->
           <div>
             <label class="block text-slate-400 font-medium mb-1">Takeaway #3 (Profit & Cost Optimization):</label>
             <textarea id="inputInsight3" rows="2" oninput="syncManualEdits()" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-200 focus:border-blue-500 focus:outline-none"></textarea>
+            <div class="mt-1.5 px-2.5 py-1.5 rounded-md bg-slate-950/90 border-l-2 border-sky-500 text-[11px] text-sky-300/95 leading-relaxed flex items-start gap-1.5">
+              <i class="fa-solid fa-language mt-0.5 text-sky-400 shrink-0"></i>
+              <span id="thaiInsight3">คำแปล: -</span>
+            </div>
           </div>
         </div>
       </div>
@@ -354,6 +371,9 @@
       line1: "",
       line2: "",
       line3: "",
+      th1: "",
+      th2: "",
+      th3: "",
       revNote1: "",
       revNote2: "",
       costNote1: "",
@@ -391,7 +411,7 @@
     }
 
     // =========================================================================
-    // 3. SMART ANALYTICAL ENGINE (Rule-based + Dynamic Recalculation)
+    // 3. SMART ANALYTICAL ENGINE (Rule-based + Thai Translation UI Only)
     // =========================================================================
     function recalculateDerivedMetrics(autoGenerateText = true) {
       const d = appData;
@@ -438,24 +458,47 @@
       insights.costNote1 = `* Production Costs: Manufacturing (${d.mfgPct.toFixed(1)}%) + Materials (${d.rmRevPct.toFixed(1)}%) consume ${prodCostCombinedPct}% of Revenue.`;
       insights.costNote2 = `* % Cost/Sale Benchmark is ${Number(d.costSalePct).toFixed(2)}% (internal formula excluding Operation Charge).`;
 
+      // Always compute Thai translations based on current metrics
+      const fgDiff = d.fgBegin - d.fgEnd; // positive means released stock to sales
+      if (fgDiff >= 0) {
+        insights.th1 = `คำแปล: การระบายสต็อกสินค้าสำเร็จรูป (FG): สต็อก FG ลดลง ${fmtShortK(fgDiff, 0)} สามารถเปลี่ยนสินค้าคงคลังให้เป็นยอดขายที่รับรู้รายได้สำเร็จ`;
+      } else {
+        insights.th1 = `คำแปล: การสะสมสต็อกสินค้าสำเร็จรูป (FG): สต็อก FG เพิ่มขึ้น ${fmtShortK(Math.abs(fgDiff), 0)} เพื่อสำรองเตรียมส่งมอบให้ลูกค้าในรอบถัดไป`;
+      }
+
+      const wipDiff = d.wipEnd - d.wipBegin; // positive means WIP built up
+      if (wipDiff > 0) {
+        insights.th2 = `คำแปล: คอขวดในสายการผลิต: งานระหว่างทำ (WIP) เพิ่มขึ้น ${fmtShortK(wipDiff, 0)} แนะนำให้ตรวจสอบจุดคอขวดในไลน์ผลิตเพื่อเร่งการปิดงาน`;
+      } else {
+        insights.th2 = `คำแปล: การไหลของงานระหว่างทำ (WIP) คล่องตัว: เคลียร์งาน WIP ลดลงได้ ${fmtShortK(Math.abs(wipDiff), 0)} แสดงถึงรอบการผลิตหน้างานที่รวดเร็วขึ้น`;
+      }
+
+      if (d.netProfit >= 0) {
+        insights.th3 = `คำแปล: การเพิ่มประสิทธิภาพกำไร: กำไรสุทธิอยู่ที่ ${fmtShortK(d.netProfit, 0)} (${d.profitPct.toFixed(2)}%) การควบคุมต้นทุนการผลิต (${d.mfgPct.toFixed(1)}%) จะช่วยเพิ่มโอกาสทำกำไรได้อีกมาก`;
+      } else {
+        insights.th3 = `คำแปล: วาระเร่งด่วนในการพลิกฟื้นกำไร: ขาดทุนสุทธิ ${fmtShortK(d.netProfit, 0)} (${d.profitPct.toFixed(2)}%) ต้องเร่งโฟกัสการคุมต้นทุนการผลิต (${d.mfgPct.toFixed(1)}%) และประสิทธิภาพการใช้วัตถุดิบ`;
+      }
+
+      document.getElementById('thaiInsight1').textContent = insights.th1;
+      document.getElementById('thaiInsight2').textContent = insights.th2;
+      document.getElementById('thaiInsight3').textContent = insights.th3;
+
       if (autoGenerateText) {
-        // 1. FG Movement Insight
-        const fgDiff = d.fgBegin - d.fgEnd; // positive means released stock to sales
+        // 1. FG Movement Insight (English for Slide & PPTX)
         if (fgDiff >= 0) {
           insights.line1 = `1. FG Stock Release: Finished goods reduced by ${fmtShortK(fgDiff, 0)}, successfully converting inventory into recognized sales.`;
         } else {
           insights.line1 = `1. FG Stock Build-up: Finished goods increased by ${fmtShortK(Math.abs(fgDiff), 0)} to buffer upcoming customer deliveries.`;
         }
 
-        // 2. WIP Movement Insight
-        const wipDiff = d.wipEnd - d.wipBegin; // positive means WIP built up
+        // 2. WIP Movement Insight (English for Slide & PPTX)
         if (wipDiff > 0) {
           insights.line2 = `2. Production Bottleneck: WIP grew by ${fmtShortK(wipDiff, 0)}; recommend auditing line bottlenecks to accelerate job completion.`;
         } else {
           insights.line2 = `2. Smooth WIP Flow: WIP cleared by ${fmtShortK(Math.abs(wipDiff), 0)}, demonstrating faster shop-floor turnaround.`;
         }
 
-        // 3. Profit Optimization Insight
+        // 3. Profit Optimization Insight (English for Slide & PPTX)
         if (d.netProfit >= 0) {
           insights.line3 = `3. Profit Optimization: Net profit stands at ${fmtShortK(d.netProfit, 0)} (${d.profitPct.toFixed(2)}%); controlling Manufacturing Cost (${d.mfgPct.toFixed(1)}%) provides strong upside.`;
         } else {
@@ -469,7 +512,7 @@
     }
 
     // =========================================================================
-    // 4. RENDER EXACT 16:9 LIVE SLIDE PREVIEW
+    // 4. RENDER EXACT 16:9 LIVE SLIDE PREVIEW (English Only on Slide)
     // =========================================================================
     function renderSlidePreview() {
       const d = appData;
@@ -827,7 +870,7 @@
                 </div>
               </div>
 
-              <!-- Sub-card 3: Executive Takeaways -->
+              <!-- Sub-card 3: Executive Takeaways (English Only) -->
               <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 9px 12px;">
                 <div style="font-size: 11px; font-weight: 800; color: #1E293B; margin-bottom: 4px;">
                   EXECUTIVE TAKEAWAYS &amp; ACTIONABLE INSIGHTS
@@ -891,7 +934,6 @@
       if (val === null || val === undefined) return 0;
       const str = String(val).trim();
       if (!str || str.toLowerCase() === 'none' || str === '-') return 0;
-      // Handle accounting format like "-  458,268.89" or "(458,268.89)"
       let isNegative = false;
       if (str.startsWith('(') && str.endsWith(')')) {
         isNegative = true;
@@ -927,7 +969,6 @@
     function detectColumnsAndExtractLatest(rows, filename) {
       availableColumns = [];
 
-      // Find the "Sale" row to know which columns actually contain financial numbers
       let saleRow = null;
       let periodHeaderRow = null;
 
@@ -938,13 +979,11 @@
 
         if (firstCell === "sale" || firstCell === "sales" || firstCell === "total sale") {
           saleRow = r;
-          // Often the row right above "Sale" contains the month headers (July'26, Aug'26, Sep'26, Oct'26)
           if (i > 0) periodHeaderRow = rows[i - 1];
           break;
         }
       }
 
-      // Fallback: scan first 5 rows for month-like headers if periodHeaderRow not found
       if (!periodHeaderRow) {
         for (let i = 0; i < Math.min(rows.length, 6); i++) {
           const r = rows[i];
@@ -966,7 +1005,6 @@
         const rawHeader = periodHeaderRow ? String(periodHeaderRow[c] || "").trim() : "";
         const saleVal = saleRow ? parseNumCell(saleRow[c]) : 0;
 
-        // A valid data column either has a period header or non-zero Sale value
         if (rawHeader || saleVal !== 0) {
           const shortP = rawHeader || `Col ${c}`;
           availableColumns.push({
@@ -977,7 +1015,6 @@
         }
       }
 
-      // If no columns detected via Sale row, default to column 1
       if (availableColumns.length === 0) {
         availableColumns.push({
           colIndex: 1,
@@ -986,7 +1023,6 @@
         });
       }
 
-      // Populate period selector dropdowns if multiple columns exist (or always show for clarity)
       const headerSelect = document.getElementById('headerPeriodSelect');
       const sidebarSelect = document.getElementById('sidebarPeriodSelect');
       const headerWrapper = document.getElementById('periodSelectorWrapper');
@@ -999,7 +1035,6 @@
       headerSelect.innerHTML = optionsHtml;
       sidebarSelect.innerHTML = optionsHtml;
 
-      // Select the LAST (rightmost / latest month) column automatically
       const latestCol = availableColumns[availableColumns.length - 1];
       headerSelect.value = String(latestCol.colIndex);
       sidebarSelect.value = String(latestCol.colIndex);
@@ -1073,7 +1108,6 @@
         const label = labelRaw.toLowerCase();
         if (!label) continue;
 
-        // Track Section Headers (Raw material, Work in Process, Finish goods)
         if (label.includes("raw material")) {
           currentSection = "RM";
           continue;
@@ -1088,7 +1122,6 @@
         const valCell = row[targetColIdx];
         const numVal = parseNumCell(valCell);
 
-        // Match specific items
         if (label === "sale" || label === "sales" || label === "total sale") {
           extracted.sale = numVal;
         } else if (label.includes("sheet metal")) {
@@ -1164,7 +1197,7 @@
     }
 
     // =========================================================================
-    // 6. NATIVE POWERPOINT (.PPTX) GENERATOR (PptxGenJS - 100% TrueType Font Safe)
+    // 6. NATIVE POWERPOINT (.PPTX) GENERATOR (English Only in PPTX)
     // =========================================================================
     async function generatePowerPoint() {
       const btn = document.getElementById('btnExportPptx');
@@ -1281,7 +1314,6 @@
           const cardW = 3.11;
           const cardH = 1.06;
 
-          // Base white card
           slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
             x: cardX, y: cardY, w: cardW, h: cardH,
             rectRadius: 0.1,
@@ -1289,20 +1321,17 @@
             line: { color: 'D5DCE6', width: 1 }
           });
 
-          // Top colored bar
           slide.addShape(pptx.shapes.RECTANGLE, {
             x: cardX + 0.08, y: cardY, w: cardW - 0.16, h: 0.05,
             fill: { color: c.accent },
             line: { color: c.accent, width: 0 }
           });
 
-          // Card Title
           slide.addText(c.title, {
             x: cardX + 0.14, y: cardY + 0.1, w: 2.1, h: 0.22,
             fontFace: fontName, fontSize: 9.5, bold: true, color: '475569', margin: 0
           });
 
-          // Small Pill Badge
           slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
             x: cardX + cardW - 0.92, y: cardY + 0.09, w: 0.78, h: 0.22,
             rectRadius: 0.06,
@@ -1314,13 +1343,11 @@
             fontFace: fontName, fontSize: 7.5, bold: true, color: c.badgeColor, align: 'center', valign: 'middle', margin: 0
           });
 
-          // Main Number
           slide.addText(c.value, {
             x: cardX + 0.14, y: cardY + 0.34, w: cardW - 0.28, h: 0.42,
             fontFace: fontName, fontSize: 21, bold: true, color: c.accent, margin: 0
           });
 
-          // Subtitle
           slide.addText(c.sub, {
             x: cardX + 0.14, y: cardY + 0.78, w: cardW - 0.28, h: 0.2,
             fontFace: fontName, fontSize: 8.5, color: '475569', margin: 0
@@ -1375,7 +1402,6 @@
         const chart1W = 2.85;
         const chart1H = 1.48;
 
-        // Vertical grid lines (0 to 6000)
         for (let g = 0; g <= 6; g++) {
           const gx = chart1X + (g / 6) * chart1W;
           slide.addShape(pptx.shapes.LINE, {
@@ -1387,7 +1413,6 @@
             fontFace: fontName, fontSize: 7.5, color: '334155', align: 'center', margin: 0
           });
         }
-        // Bottom axis line
         slide.addShape(pptx.shapes.LINE, {
           x: chart1X, y: chart1Y + chart1H, w: chart1W, h: 0,
           line: { color: '64748B', width: 0.75 }
@@ -1421,7 +1446,6 @@
           });
         });
 
-        // Revenue Table
         const revTableRows = [
           [
             { text: 'Sheet metal parts', options: { bold: true, color: '0F172A', fill: 'FFFFFF' } },
@@ -1459,7 +1483,6 @@
           border: { type: 'solid', color: 'F1F5F9', pt: 0.5 }
         });
 
-        // Revenue Callout Box
         slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
           x: c1X + 0.16, y: colY + 4.02, w: colW - 0.32, h: 0.78,
           rectRadius: 0.1,
@@ -1480,7 +1503,6 @@
         const chart2W = 3.42;
         const chart2H = 1.42;
 
-        // Horizontal grid lines (0 to 5000 step 500)
         for (let g = 0; g <= 10; g++) {
           const val = g * 500;
           const gy = chart2Y + chart2H - (g / 10) * chart2H;
@@ -1493,7 +1515,6 @@
             fontFace: fontName, fontSize: 7, color: '334155', align: 'right', margin: 0
           });
         }
-        // Left Y-axis line
         slide.addShape(pptx.shapes.LINE, {
           x: chart2X, y: chart2Y, w: 0, h: chart2H,
           line: { color: '64748B', width: 0.75 }
@@ -1530,7 +1551,6 @@
           });
         });
 
-        // Cost Table
         const costTableRows = [
           [
             { text: 'Manufacturing Cost', options: { bold: true, color: '0F172A', fill: 'FFFFFF' } },
@@ -1568,7 +1588,6 @@
           border: { type: 'solid', color: 'F1F5F9', pt: 0.5 }
         });
 
-        // Cost Callout Box
         slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
           x: c2X + 0.16, y: colY + 4.02, w: colW - 0.32, h: 0.78,
           rectRadius: 0.1,
@@ -1581,7 +1600,7 @@
         });
 
         // ---------------------------------------------------------------------
-        // COLUMN 3 CONTENT: INVENTORY MOVEMENT, WORKFORCE & TAKEAWAYS
+        // COLUMN 3 CONTENT: INVENTORY MOVEMENT, WORKFORCE & TAKEAWAYS (English Only)
         // ---------------------------------------------------------------------
         const c3X = colXs[2];
         const wipDelta = d.wipEnd - d.wipBegin;
@@ -1631,7 +1650,7 @@
           fontFace: fontName, valign: 'top', lineSpacingMultiple: 1.15, margin: 0
         });
 
-        // Sub-card 3: Executive Takeaways
+        // Sub-card 3: Executive Takeaways (English Only)
         slide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
           x: c3X + 0.16, y: colY + 3.64, w: colW - 0.32, h: 1.18,
           rectRadius: 0.1,
@@ -1648,7 +1667,7 @@
         });
 
         // ---------------------------------------------------------------------
-        // 4. BOTTOM FOOTER (Updated to S METAL TECH CO.,LTD.)
+        // 4. BOTTOM FOOTER
         // ---------------------------------------------------------------------
         slide.addText(
           `Remarks: 1. % Cost/Sale (${Number(d.costSalePct).toFixed(2)}%) excludes Operation Charge  |  2. % Raw Mat Use (${d.rawMatUsePct.toFixed(2)}%) = Total Raw Mat Use / (SM + MA Sales)  |  Source: ${d.filename}  |  S METAL TECH CO.,LTD.`,
@@ -1677,7 +1696,7 @@
     function generateAiInsights() {
       recalculateDerivedMetrics(true);
       renderSlidePreview();
-      showToast("คำนวณและอัปเดตบทวิเคราะห์ตามตัวเลขจริงเรียบร้อยค่ะ!", "success");
+      showToast("คำนวณและอัปเดตบทวิเคราะห์พร้อมคำแปลภาษาไทยเรียบร้อยค่ะ!", "success");
     }
 
     function syncManualEdits() {
